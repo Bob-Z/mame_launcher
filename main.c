@@ -1,0 +1,864 @@
+//#define system(x) puts(x)
+
+#if 0
+#define WITH_SOFTLIST 1
+#define WORKING_DIR "/home/fred/mess/mess"
+#define BINARY "~/mess/mess/mess"
+#define BINARY_LISTXML "~/mess/mess/mess -listxml"
+#define BINARY_GETSOFTLIST "~/mess/mess/mess -getsoftlist"
+#define LIST_XML "/tmp/check_roms_listxml"
+#define LIST_SOFTWARE "/tmp/check_roms_listsoftware"
+#define ROMS_DIR "/media/4To/Mess/roms"
+#define ROOT_NODE "mess"
+#define ENTRY_TYPE "machine"
+#define SOFTWARELIST "softwarelist"
+#endif
+
+#define UME_MODE 0
+#define MAME_MODE 1
+
+#define TMP_DIR "/media/4To/tmp/"
+
+#define MAME_WORKING_DIR "/media/4To/emu/mame/mame"
+#define MAME_BINARY "/media/4To/emu/mame/mame/mame"
+#define MAME_ROMS_DIR "/media/4To/Mame/roms"
+#define MAME_ROOT_NODE "mame"
+
+#define UME_WORKING_DIR "/media/4To/emu/mame/mame"
+#define UME_BINARY "/media/4To/emu/mame/mame/ume"
+#define UME_ROMS_DIR "/media/4To/Mess/roms"
+#define UME_ROOT_NODE "ume"
+
+#define PARAM_LISTXML "-listxml"
+#define PARAM_GETSOFTLIST "-getsoftlist"
+#define LIST_XML "/media/4To/emu/check_roms_listxml"
+#define LIST_SOFTWARE "/media/4To/emu/check_roms_listsoftware"
+#define ENTRY_TYPE "game"
+#define SOFTWARELIST "softwarelist"
+
+#define WHITE_LIST "/home/fred/.config/ume_launcher/whitelist"
+#define MAX_DRIVER 10000
+#define OPTION_NO_SOUND " -nosound "
+#define AUTO_MODE_OPTION " -nowindow -str 60 "
+
+#include <stdio.h>
+#include <string.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include "linked_list.h"
+#include "parse_data.h"
+#include <termios.h>
+#include <unistd.h>
+#include <getopt.h>
+#include <errno.h>
+#include <pthread.h>
+
+llist_t * listxml;
+llist_t * softlist;
+char **chd_list_dir = NULL;
+char **chd_list_file = NULL;
+int chd_count = 0;
+char * forced_list = NULL;
+
+char option[10000] ;
+char command_line[10000];
+
+int whitelist; /* whitelist file descriptor */
+/* Names of directories to skip during CHD scanning */
+char * chd_black_list[] = { "pcecd", "cdi", "pippin", NULL} ;
+/* Names of drivers to skip when running in auto mode */
+char * auto_black_list[] = { "cdimono1", "cpc464", "cpc664", "cpc6128", "al520ex", "kccomp", "cpc6128f", "cpc6128s", "ti99_4e", "x1turbo40", "kontiki", "bbcb", "bbcbp", "mz700" , "bbcm", "bbcbp128", "kc85_5", "kc85_4", "kc85_3", "kc85_2", "mpz80",  "lviv", "abc80", "orionzms", "orionz80", "orionpro", "orionms", "orionidm", "orionide", "orion128", "specimx", "specialp", "specialm", "special", "pioner", "lik", "bbcmc_ar", "bbcmc", "bbcb_us", "bbcb_us", "bbcb_de", "ti99_4qi", "ti99_4qe", "ti99_4ev", "ti99_4ae", "ti99_4a", "ti99_4", "adam", "apogee", "bbcmt", "bbcmarm", "bbcmaiv", "bbcm512", "phc64", "ep64", "ep128", NULL } ;
+/* Names of drivers to skip when selecting a driver */
+char * driver_black_list[] = { "kccomp", "al520ex", "cpc6128s", "cpc6128f", NULL };
+/* Description string to black list (namely for fruit machine) */
+char * desc_black_list[] = { "(MPU4)", "(Scorpion 4)", NULL };
+
+int emumode = UME_MODE;
+int automode = 0;
+int chdmode = 0;
+int preliminarymode = 0;
+int minyear = 0;
+int update = 0;
+int whitelistmode = 0;
+
+char * binary = NULL;
+
+struct termios orig_term_attr;
+struct termios new_term_attr;
+
+const char optstring[] = "?acpmwul:y:n";
+const struct option longopts[] =
+        {{ "auto",no_argument,NULL,'a' },
+        { "chd",no_argument,NULL,'c' },
+        { "preliminary",no_argument,NULL,'p' },
+        { "mame",no_argument,NULL,'m' },
+        { "update",no_argument,NULL,'u' },
+        { "whitelist",no_argument,NULL,'w' },
+        { "list",required_argument,NULL,'l' },
+        { "year",required_argument,NULL,'y' },
+        { "nosound",no_argument,NULL,'n' },
+	{NULL,0,NULL,0}};
+
+
+static char *filter[]= { "dipswitch", "dipvalue", "chip", "display", "sound", "input", "control", "configuration", "confsetting", "adjuster", "device", "instance", "extension", "slot", "slotoption", "ramoption", "publisher", "info", "sharedfeat", "manufacturer", "biosset", "device_ref", "sample", NULL };
+
+char * select_random_driver(char * list, char * compatibility)
+{
+	llist_t * current;
+	llist_t * soft_list;
+	llist_t * des;
+	llist_t * drv;
+	llist_t * y;
+	char * name;
+	char * soft_name;
+	char * driver_status;
+	char * year;
+	char * driver[MAX_DRIVER];
+	char * desc[MAX_DRIVER];
+	char * compat;
+	int driver_count = 0;
+	int R;
+	int i;
+
+	current = find_first_node(listxml,ENTRY_TYPE);
+	do {
+		soft_list = find_first_node(current,"softwarelist");
+		if(soft_list == NULL ) {
+			continue;
+		}
+		do {
+			soft_name = find_attr(soft_list,"name");
+			if(!strcmp(soft_name,list)) {
+				name =find_attr(current,"name");
+				des = find_first_node(current,"description");
+				/* Driver black list */
+				i = 0;
+				while( driver_black_list[i] != NULL ) {
+					if(!strcmp(name,driver_black_list[i])){
+						printf(" - driver %s(%s) is black-listed, skipping\n",des->data,name);
+						break;
+					}
+					i++;
+				}
+				if( driver_black_list[i] != NULL ) {
+					break;
+				}
+
+				/* Filter */
+				drv = find_first_node(current,"driver");
+				driver_status = find_attr(drv,"status");
+
+				if(minyear > 0) {
+					year = find_attr(drv,"year");
+					if(year==NULL || year[0]==0){
+						y = find_first_node(current,"year");
+						year = y->data;
+						if(year==NULL || year[0]==0){
+							printf(" - driver %s(%s) : has no year, skipping\n",des->data,name);
+							break;
+						}
+					}
+					if( atoi(year) < minyear ) {
+						printf(" - driver %s(%s) : is too old (%s), skipping\n",des->data,name,year);
+						break;
+					}
+				}
+
+				if(!strcmp(driver_status,"preliminary")) {
+					if(!preliminarymode) {
+						printf(" - driver %s(%s) is preliminary, skipping\n",des->data,name);
+						break;
+					}
+					printf(" - driver %s(%s) is preliminary\n",des->data,name);
+				}
+
+				if(compatibility) {
+					compat = find_attr(soft_list,"filter");
+					if(compat) {
+						if(strcmp(compat,compatibility)) {
+							printf(" - driver %s(%s) is not compatible, skipping\n",des->data,name);
+							break;
+						}
+					}
+				}
+
+				if( automode ) {
+					i = 0;
+					while(auto_black_list[i]!=NULL) {
+						if(!strcmp(auto_black_list[i],name)) {
+							printf("%s black listed for auto-mode\n",name);
+							break;
+						}
+						i++;
+					}
+
+					if(auto_black_list[i]!=NULL){
+						continue;
+					}
+				}
+
+				driver[driver_count] = name;
+				desc[driver_count] = des->data;
+				driver_count++;
+			}
+		} while ( (soft_list=find_next_node(soft_list)) != NULL );
+
+	} while ( (current=find_next_node(current)) != NULL );
+
+	printf("%d compatible drivers for list %s",driver_count,list);
+	if( driver_count == 0 ) {
+		printf("\n\n");
+		return NULL;
+	}
+
+	printf(" :");
+	for(i=0;i<driver_count;i++) {
+		printf(" %s",driver[i]);
+	}
+	printf("\n");
+
+	R =rand()%driver_count;
+	printf("\n%s\n",desc[R]);
+	return driver[R];
+}
+
+/* return 1 if system is launched in NON auto mode, 0 otherwise */
+int select_random_soft(int R)
+{
+	int count = 0;
+	llist_t * current;
+	llist_t * soft_list;
+	llist_t * driver;
+	llist_t * desc;
+	llist_t * desc_soft;
+	llist_t * part;
+	llist_t * feature;
+	llist_t * y;
+	char * name;
+	char * soft_name;
+	char * ismechanical;
+	char * isdevice;
+	char * runnable;
+	char * driver_status;
+	char * year;
+	char * list_desc;
+	char * selected_driver;
+	char * compatibility;
+	char * feat;
+	char buf[10000];
+	int i;
+
+	current = find_first_node(listxml,ENTRY_TYPE);
+	do {
+		if(count == R) {
+			name = find_attr(current,"name");
+			desc = find_first_node(current,"description");
+
+			ismechanical = find_attr(current,"ismechanical");
+			if(!strcmp(ismechanical,"yes")) {
+				printf(" - %s(%s) is mechanical, skipping\n",desc->data,name);
+				return 0;
+			}
+			isdevice = find_attr(current,"isdevice");
+			if(!strcmp(isdevice,"yes")) {
+				printf(" - %s(%s) is a device, skipping\n",desc->data,name);
+				return 0;
+			}
+			runnable = find_attr(current,"runnable");
+			if(!strcmp(runnable,"no")) {
+				printf(" - %s(%s) is not runnable, skipping\n",desc->data,name);
+				return 0;
+			}
+
+			driver = find_first_node(current,"driver");
+			driver_status = find_attr(driver,"status");
+			if(minyear > 0) {
+				if(minyear > 0) {
+					year = find_attr(driver,"year");
+					if(year==NULL || year[0]==0){
+						y = find_first_node(current,"year");
+						year = y->data;
+						if(year==NULL || year[0]==0){
+							printf(" - driver %s(%s) : has no year, skipping\n",desc->data,name);
+							return 0;
+						}
+					}
+				}
+				if( atoi(year) < minyear ) {
+					printf(" - driver %s(%s) : is too old (%s), skipping\n",desc->data,name,year);
+					return 0;
+				}
+			}
+			if(!strcmp(driver_status,"preliminary")) {
+				if(!preliminarymode) {
+					printf(" - %s(%s) is preliminary, skipping\n",desc->data,name);
+					return 0;
+				}
+				printf(" - %s(%s) is preliminary\n",desc->data,name);
+			}
+
+			/* Description black list */
+			i = 0;
+			while( desc_black_list[i] != NULL ) {
+				if(strstr(desc->data,desc_black_list[i])){
+					printf(" - driver %s(%s) is black-listed by its description, skipping\n",desc->data,name);
+					break;
+				}
+				i++;
+			}
+			if( desc_black_list[i] != NULL ) {
+			return 0;
+			}
+
+			/* check auto-mode black-list */
+			if( automode ) {
+				i = 0;
+				while(auto_black_list[i]!=NULL) {
+					if(!strcmp(auto_black_list[i],name)) {
+						printf("%s black listed for auto-mode\n",name);
+						return 0;
+					}
+					i++;
+				}
+			}
+
+//			printf("\n##############\n");
+			printf("%s\n",desc->data);
+			sprintf(command_line,"%s",name);
+			if(!automode) {
+				sprintf(buf,"%s %s %s",binary,option,command_line);
+				if( getchar() != 0x20 ) {
+					printf("%s\n",buf);
+					if(system(buf) == -1 ) {
+						printf("Failed to run command %s\n",buf);
+					}
+					return 1;
+				}
+				return 0;
+			}
+
+			sleep(1);
+			sprintf(buf,"%s %s %s %s",binary,option,AUTO_MODE_OPTION,command_line);
+			printf("%s\n",buf);
+			if(system(buf) == -1 ) {
+				printf("Failed to run command %s\n",buf);
+			}
+			return 0;
+		}
+		count++;
+	} while((current=find_next_node(current))!=NULL);
+
+	if( softlist != NULL ) {
+		current = find_first_node(softlist,SOFTWARELIST);
+		do {
+			soft_list = find_first_node(current,"software");
+			do {
+				if(count == R) {
+					name = find_attr(current,"name");
+					list_desc = find_attr(current,"description");
+					soft_name = find_attr(soft_list,"name");
+					desc_soft = find_first_node(soft_list,"description");
+#if 0
+					supported = find_attr(soft_list,"supported");
+					if(!strcmp(supported,"no")) {
+						printf("\n - %s (%s:%s) software not supported, skipping\n",desc_soft->data,name,soft_name);
+						return 0;
+					}
+#endif
+
+					/* Try to get compatiblity feature */
+					compatibility = NULL;
+					part = find_first_node(soft_list,"part");
+					feature = find_first_node(part,"feature");
+					if( feature ) {
+						do {
+							feat = find_attr(feature,"name");
+							if(!strcmp(feat,"compatibility")) {
+								compatibility = find_attr(feature,"value");
+								break;
+							}
+						} while ( (feature=find_next_node(feature))!=NULL);
+					}
+
+
+
+//					printf("\n##############\n");
+
+					printf("Software list: %s (%s)\n",list_desc,name);
+					selected_driver = select_random_driver(name,compatibility);
+					if( selected_driver == NULL ) {
+						return 0;
+					}
+					printf("%s\n",desc_soft->data);
+					sprintf(command_line,"%s %s",selected_driver,soft_name);
+					if(!automode) {
+						sprintf(buf,"%s %s %s",binary,option,command_line);
+						if( getchar() != 0x20 ) {
+							printf("%s\n",buf);
+							if(system(buf) == -1 ) {
+								printf("Failed to run command %s\n",buf);
+							}
+							return 1;
+						}
+						return 0;
+					}
+
+					sleep(1);
+					sprintf(buf,"%s %s %s %s",binary,option,AUTO_MODE_OPTION,command_line);
+					printf("%s\n",buf);
+					if(system(buf) == -1 ) {
+						printf("Failed to run command %s\n",buf);
+					}
+					return 0;
+				}
+				count++;
+			} while((soft_list=find_next_node(soft_list))!=NULL);
+		} while((current=find_next_node(current))!=NULL);
+	}
+
+	printf("Error!!");
+	return 0;
+}
+
+void normal_mode()
+{
+	llist_t * current;
+	llist_t * soft_list;
+	int entry_count;
+	int softlist_count = -1;
+	int software_count = -1;
+	int R;
+	int c;
+	char * list_name = NULL;
+	int forced_list_start = -1;
+	int forced_list_count = 0;
+	int count_forced_soft = 0;
+
+	current = find_first_node(listxml,ENTRY_TYPE);
+	entry_count = 1;
+	while((current=find_next_node(current))!=NULL) {
+		entry_count++;
+	}
+	printf("%d entries\n",entry_count);
+
+	if( softlist != NULL ) {
+		softlist_count=0;
+		software_count=0;
+		current = find_first_node(softlist,SOFTWARELIST);
+		do {
+			softlist_count ++;
+			count_forced_soft = 0;
+
+			if( forced_list ) {
+				list_name = find_attr(current,"name");
+				if(!strcmp(forced_list,list_name)) {
+					forced_list_start = software_count;
+					count_forced_soft = 1;
+				}
+			}
+			soft_list = find_first_node(current,"software");
+			do {
+				software_count++;
+				if(count_forced_soft) {
+					forced_list_count++;
+				}
+			} while((soft_list=find_next_node(soft_list))!=NULL);
+		} while((current=find_next_node(current))!=NULL);
+	}
+	printf("%d software lists\n",softlist_count);
+	printf("%d softwares\n",software_count);
+
+	if(forced_list) {
+		printf("Forced list : %s\n",forced_list);
+		if( forced_list_start == -1 ) {
+			printf("%s list not found\n",forced_list);
+			exit(-1);
+		}
+		if( forced_list_count == 0 ) {
+			printf("No software found for list %s\n",forced_list);
+			exit(-1);
+		}
+		printf("%d software in this list\n",forced_list_count);
+	}
+
+
+	while(1) {
+		if ( forced_list ) {
+			R = entry_count + forced_list_start + ( rand()%forced_list_count );
+		}
+		else {
+			R = rand()%(software_count+entry_count);
+		}
+
+		printf("\n##############\n\n");
+		if(select_random_soft(R)) {
+			printf("[W]hite list software ?\n");
+			c = getchar();
+			if( c=='w' || c=='W' ) {
+				if( write(whitelist,"\n",strlen("\n")) == -1 ){
+					printf("Failed to write to whitelist\n");
+				}
+				else {
+					if( write(whitelist,command_line,strlen(command_line)) == -1 ) {
+						printf("Failed to write to whitelist\n");
+					}
+				}
+			}
+		}
+	}
+}
+
+void read_chd_dir(char * dir)
+{
+        DIR * d;
+        struct dirent * e;
+	char buf[10000];
+
+	d = opendir(dir);
+	if(d==NULL) {
+		printf("Error opening %s : %d\n",dir,errno);
+		exit(1);
+	}
+
+	while( (e = readdir(d)) != 0 ) {
+		if(!strcmp(e->d_name,".")) continue;
+		if(!strcmp(e->d_name,"..")) continue;
+		if(e->d_type == DT_DIR) {
+			sprintf(buf,"%s/%s",dir,e->d_name);
+			read_chd_dir(buf);
+			continue;
+		}
+		if(e->d_type != DT_REG) continue;
+		if(strlen(e->d_name)>4) {
+			if(!strcmp(e->d_name+strlen(e->d_name)-4,".chd")) {
+				chd_count++;
+				chd_list_dir = realloc(chd_list_dir,sizeof(char*)*chd_count);
+				chd_list_file = realloc(chd_list_file,sizeof(char*)*chd_count);
+				chd_list_dir[chd_count-1]=strdup(dir);
+				chd_list_file[chd_count-1]=strdup(e->d_name);
+			}
+		}
+	}
+	closedir(d);
+}
+
+void chd_mode()
+{
+	int R;
+	char * tmp;
+	char * tmp2;
+	char context[128];
+	char cmd[10000];
+	char * driver;
+	int i;
+
+	if(emumode==MAME_MODE) {
+		printf("Reading CHD files in %s\n",MAME_ROMS_DIR);
+		read_chd_dir(MAME_ROMS_DIR);
+	}
+	else {
+		if(forced_list) {
+			sprintf(cmd,"%s/%s",UME_ROMS_DIR,forced_list);
+			printf("Reading CHD files in %s\n",cmd);
+			read_chd_dir(cmd);
+		}
+		else {
+			printf("Reading CHD files in %s\n",UME_ROMS_DIR);
+			read_chd_dir(UME_ROMS_DIR);
+		}
+	}
+
+	
+	printf("%d CHD files found\n",chd_count);
+
+	while (1) {
+		R = rand();
+
+		/* Set the context to the name of the directory */
+		tmp = strstr(chd_list_dir[R%chd_count],"roms/");
+		tmp+=(sizeof("roms/") - 1 );
+		tmp2 = strstr(tmp,"/");
+		if(tmp2 == NULL) {
+			strcpy(context,tmp);
+		}
+		else {
+			strncpy(context,tmp,tmp2-tmp);
+			context[tmp2-tmp]=0;
+		}
+
+		/* chd mode filter (skipping black listed directories)*/
+		i = 0;
+		while(chd_black_list[i]!=NULL) {
+			if(!strcmp(chd_black_list[i],context)) {
+				printf("%s black listed for chd-mode\n",context);
+				break;
+			}
+			i++;
+		}
+		if(chd_black_list[i]!=NULL) {
+			continue;
+		}
+
+		printf("********************************\n");
+		printf("%s\n\n",context);
+		driver = select_random_driver(context,NULL);
+
+		if(driver == NULL) {
+			driver = context;
+			printf("\nSetting driver name to directory name\n");
+		}
+	
+		printf(	"\n%s\n%s\n",driver,chd_list_file[R%chd_count]);
+		if(!automode) {
+			sprintf(cmd,"%s %s %s -cdrom \"%s/%s\"\n",binary, option, driver, chd_list_dir[R%chd_count], chd_list_file[R%chd_count]);
+			if( getchar() != 0x20 ) {
+				printf("%s\n",cmd);
+				if(system(cmd) == -1 ) {
+					printf("Failed to run command %s\n",cmd);
+				}
+			}
+		}
+		else {
+			sleep(1);
+			sprintf(cmd,"%s %s %s %s -cdrom \"%s/%s\"",binary,option,AUTO_MODE_OPTION,driver, chd_list_dir[R%chd_count], chd_list_file[R%chd_count]);
+			printf("%s\n",cmd);
+			if(system(cmd) == -1 ) {
+				printf("Failed to run command %s\n",cmd);
+			}
+		}
+	}
+}
+
+void * launch_load_listxml(void * arg)
+{
+	parse_data_t data;
+	char filename[1024];
+	char cmd[1024];
+	struct stat stat_info;
+//	char * type_info = (char *)arg;
+	char * type_info = PARAM_LISTXML;
+
+	data.root_node = NULL;
+	data.decoding_string = 0;
+	data.xml_filter = NULL;
+	data.current = NULL;
+
+	if( emumode == MAME_MODE ) {
+		sprintf(filename,"%s%s%s",TMP_DIR,MAME_ROOT_NODE,type_info);
+		sprintf(cmd,"%s %s | tee %s ",MAME_BINARY,type_info,filename);
+	}
+	else {
+		sprintf(filename,"%s%s%s",TMP_DIR,UME_ROOT_NODE,type_info);
+		sprintf(cmd,"%s %s | tee %s",UME_BINARY,type_info,filename);
+	}
+
+	if(stat(filename,&stat_info)==0 && !update) {
+		sprintf(cmd,"/bin/cat %s",filename);
+	}
+	
+	listxml = LoadXML(cmd,&data,filter);
+	return NULL;
+}
+
+void * launch_load_getsoftlist(void * arg)
+{
+	parse_data_t data;
+	char filename[1024];
+	char cmd[1024];
+	struct stat stat_info;
+//	char * type_info = (char *)arg;
+	char * type_info = PARAM_GETSOFTLIST;
+
+	data.root_node = NULL;
+	data.decoding_string = 0;
+	data.xml_filter = NULL;
+	data.current = NULL;
+
+	if( emumode == MAME_MODE ) {
+		sprintf(filename,"%s%s%s",TMP_DIR,MAME_ROOT_NODE,type_info);
+		sprintf(cmd,"%s %s | tee %s ",MAME_BINARY,type_info,filename);
+	}
+	else {
+		sprintf(filename,"%s%s%s",TMP_DIR,UME_ROOT_NODE,type_info);
+		sprintf(cmd,"%s %s | tee %s",UME_BINARY,type_info,filename);
+	}
+
+	if(stat(filename,&stat_info)==0 && !update ) {
+		sprintf(cmd,"/bin/cat %s",filename);
+	}
+	
+	softlist = LoadXML(cmd,&data,filter);
+	return NULL;
+}
+
+void whitelist_mode()
+{
+	FILE * whitelist = NULL;
+	char ** list = NULL;
+	size_t len;
+	int count = 0;
+	char buf[1024];
+	char * entry = NULL;
+	int R;
+	char driver[1024];
+	int i;
+
+	/* Load list */
+	whitelist = fopen(WHITE_LIST,"r");
+	while (  getline(&entry,&len,whitelist) !=  -1 ){
+		count++;
+		list=realloc(list,count*sizeof(char *));
+		if(list == NULL) {
+			printf("Memory error\n");
+			exit(-1);
+		}
+		list[count-1] = entry;
+		entry=NULL;
+	}
+
+	fclose(whitelist);
+
+	while(1) {
+		R =rand()%count;
+		if( automode ) {
+			sscanf(list[R],"%s",driver);
+			i = 0;
+			while(auto_black_list[i]!=NULL) {
+				if(!strcmp(auto_black_list[i],driver)) {
+					printf("%s black listed for auto-mode\n",driver);
+					break;
+				}
+				i++;
+			}
+			if(auto_black_list[i] != NULL ) {
+				continue;
+			}
+			sprintf(buf,"%s %s %s %s",binary,option,AUTO_MODE_OPTION,list[R]);
+		}
+		else {
+			sprintf(buf,"%s %s %s",binary,option,list[R]);
+		}
+		printf("%s\n",buf);
+		sleep(1);
+		if(system(buf) == -1 ) {
+			printf("Failed to run command %s\n",buf);
+		}
+	}
+}
+
+void unset_terminal_mode(void)
+{
+	tcsetattr(fileno(stdin), TCSANOW, &orig_term_attr);
+}
+int main(int argc, char**argv)
+{
+	int opt_ret;
+
+
+	pthread_t thread_xml;
+	pthread_t thread_softlist;
+
+	void * ret;
+
+	srand ( time(NULL) );
+
+	option[0] = 0;
+
+	while((opt_ret = getopt_long(argc, argv, optstring, longopts, NULL))!=-1) {
+		switch(opt_ret) {
+			case 'a':
+				automode = 1;
+				break;
+			case 'c':
+				chdmode = 1;
+				break;
+			case 'p':
+				preliminarymode = 1;
+				break;
+			case 'm':
+				emumode = MAME_MODE;
+				break;
+			case 'u':
+				update = 1;
+				break;
+			case 'w':
+				whitelistmode = 1;
+				emumode = UME_MODE;
+				break;
+			case 'l':
+				forced_list = optarg;
+				break;
+			case 'y':
+				minyear = atoi(optarg);
+				break;
+			case 'n':
+				strcat(option,OPTION_NO_SOUND);
+				break;
+			default:
+				printf("HELP:\n\n");
+				printf("-a : automatic mode\n");
+				printf("-c : only CHD\n");
+				printf("-p : allow preliminary drivers\n");
+				printf("-m : use MAME only instead of UME\n");
+				printf("-l <list> : only use <list> software list\n");
+				printf("-u : update cache from binaries\n");
+				printf("-y <year> : only choose drivers later than <year>\n");
+				printf("-n : no sound\n");
+				exit(0);
+		}
+	}
+
+	if( emumode == MAME_MODE ) {
+		if(chdir(MAME_WORKING_DIR) == -1) {
+			printf("Failed to change to directory %s\n",MAME_WORKING_DIR);
+			exit(-1);
+		}
+		binary = MAME_BINARY;
+	}
+	else {
+		if(chdir(UME_WORKING_DIR) == -1) {
+			printf("Failed to change to directory %s\n",UME_WORKING_DIR);
+			exit(-1);
+		}
+		binary = UME_BINARY;
+	}
+
+	if( whitelistmode ) {
+		whitelist_mode();
+	}
+
+	printf("Loading lists\n");
+	pthread_create(&thread_xml,NULL,launch_load_listxml,NULL);
+	pthread_create(&thread_softlist,NULL,launch_load_getsoftlist,NULL);
+	pthread_join(thread_xml,&ret);
+	pthread_join(thread_softlist,&ret);
+
+	if(!automode) {
+		/* set the terminal to raw mode */
+		tcgetattr(fileno(stdin), &orig_term_attr);
+		memcpy(&new_term_attr, &orig_term_attr, sizeof(struct termios));
+		new_term_attr.c_lflag &= ~(ECHO|ICANON);
+		tcsetattr(fileno(stdin), TCSANOW, &new_term_attr);
+
+		atexit(unset_terminal_mode);
+	}
+
+	if( chdmode) {
+		chd_mode();
+	}
+	else {
+		if(!automode) {
+			whitelist = open(WHITE_LIST,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG|S_IROTH);
+			if(whitelist == -1) {
+				printf("Error openning whitelist\n");
+				exit(1);
+			}
+			lseek(whitelist,0,SEEK_END);
+		}
+		normal_mode();
+	}
+
+	return 0;
+}
