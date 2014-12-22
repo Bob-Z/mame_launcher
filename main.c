@@ -310,6 +310,7 @@ int select_random_soft(int R)
 			sprintf(command_line,"%s",name);
 			if(!automode) {
 				sprintf(buf,"%s %s %s",binary,option,command_line);
+				printf("Space to skip...\n");
 				if( getchar() != 0x20 ) {
 					printf("%s\n",buf);
 					if(system(buf) == -1 ) {
@@ -372,6 +373,7 @@ int select_random_soft(int R)
 					sprintf(command_line,"%s %s",selected_driver,soft_name);
 					if(!automode) {
 						sprintf(buf,"%s %s %s",binary,option,command_line);
+						printf("Space to skip...\n");
 						if( getchar() != 0x20 ) {
 							printf("%s\n",buf);
 							if(system(buf) == -1 ) {
@@ -473,7 +475,7 @@ void normal_mode()
 		if(select_random_soft(R)) {
 			printf("[W]hite list software ?\n");
 			c = getchar();
-			if( c=='w' || c=='W' ) {
+			if( c=='w' || c=='W' || c=='y' || c=='Y' ) {
 				if( write(whitelist,"\n",strlen("\n")) == -1 ){
 					printf("Failed to write to whitelist\n");
 				}
@@ -590,6 +592,7 @@ void chd_mode()
 		printf(	"\n%s\n%s\n",driver,chd_list_file[R%chd_count]);
 		if(!automode) {
 			sprintf(cmd,"%s %s %s -cdrom \"%s/%s\"\n",binary, option, driver, chd_list_dir[R%chd_count], chd_list_file[R%chd_count]);
+			printf("Space to skip...\n");
 			if( getchar() != 0x20 ) {
 				printf("%s\n",cmd);
 				if(system(cmd) == -1 ) {
@@ -829,7 +832,6 @@ int main(int argc, char**argv)
 				break;
 			case 'w':
 				whitelistmode = 1;
-				emumode = UME_MODE;
 				break;
 			case 'l':
 				forced_list = optarg;
@@ -848,8 +850,9 @@ int main(int argc, char**argv)
 				printf("-m : use MAME only instead of UME\n");
 				printf("-l <list> : only use <list> software list\n");
 				printf("-u : update cache from binaries\n");
-				printf("-y <year> : only choose drivers later than <year>\n");
+				printf("-y <4 digit year> : only choose drivers later than <year>\n");
 				printf("-n : no sound\n");
+				printf("-w : use white list\n");
 				exit(0);
 		}
 	}
