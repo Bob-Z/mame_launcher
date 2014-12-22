@@ -1,45 +1,22 @@
 //#define system(x) puts(x)
 
-#if 0
-#define WITH_SOFTLIST 1
-#define WORKING_DIR "/home/fred/mess/mess"
-#define BINARY "~/mess/mess/mess"
-#define BINARY_LISTXML "~/mess/mess/mess -listxml"
-#define BINARY_GETSOFTLIST "~/mess/mess/mess -getsoftlist"
-#define LIST_XML "/tmp/check_roms_listxml"
-#define LIST_SOFTWARE "/tmp/check_roms_listsoftware"
-#define ROMS_DIR "/media/4To/Mess/roms"
-#define ROOT_NODE "mess"
-#define ENTRY_TYPE "machine"
-#define SOFTWARELIST "softwarelist"
-#endif
-
 #define UME_MODE 0
 #define MAME_MODE 1
 
-#define TMP_DIR "/media/4To/tmp/"
-
-#define MAME_WORKING_DIR "/media/4To/emu/mame/mame"
-#define MAME_BINARY "/media/4To/emu/mame/mame/mame"
-#define MAME_ROMS_DIR "/media/4To/Mame/roms"
 #define MAME_ROOT_NODE "mame"
-
-#define UME_WORKING_DIR "/media/4To/emu/mame/mame"
-#define UME_BINARY "/media/4To/emu/mame/mame/ume"
-#define UME_ROMS_DIR "/media/4To/Mess/roms"
 #define UME_ROOT_NODE "ume"
 
 #define PARAM_LISTXML "-listxml"
 #define PARAM_GETSOFTLIST "-getsoftlist"
-#define LIST_XML "/media/4To/emu/check_roms_listxml"
-#define LIST_SOFTWARE "/media/4To/emu/check_roms_listsoftware"
 #define ENTRY_TYPE "game"
 #define SOFTWARELIST "softwarelist"
 
-#define WHITE_LIST "/home/fred/.config/ume_launcher/whitelist"
-#define MAX_DRIVER 10000
+#define WHITE_LIST "/.config/ume_launcher/whitelist"
+#define MAX_DRIVER (10000)
 #define OPTION_NO_SOUND " -nosound "
 #define AUTO_MODE_OPTION " -nowindow -str 60 "
+
+#define BUFFER_SIZE (10000)
 
 #include <stdio.h>
 #include <string.h>
@@ -55,6 +32,13 @@
 #include <errno.h>
 #include <pthread.h>
 
+char * tmp_dir=NULL;
+char * working_dir=NULL;
+char * binary=NULL;
+char * roms_dir=NULL;
+char * root_node=NULL;
+char * white_list=NULL;
+
 llist_t * listxml;
 llist_t * softlist;
 char **chd_list_dir = NULL;
@@ -62,8 +46,8 @@ char **chd_list_file = NULL;
 int chd_count = 0;
 char * forced_list = NULL;
 
-char option[10000] ;
-char command_line[10000];
+char option[BUFFER_SIZE] ;
+char command_line[BUFFER_SIZE];
 
 int whitelist; /* whitelist file descriptor */
 /* Names of directories to skip during CHD scanning */
@@ -82,8 +66,6 @@ int preliminarymode = 0;
 int minyear = 0;
 int update = 0;
 int whitelistmode = 0;
-
-char * binary = NULL;
 
 struct termios orig_term_attr;
 struct termios new_term_attr;
@@ -247,7 +229,7 @@ int select_random_soft(int R)
 	char * selected_driver;
 	char * compatibility;
 	char * feat;
-	char buf[10000];
+	char buf[BUFFER_SIZE];
 	int i;
 
 	current = find_first_node(listxml,ENTRY_TYPE);
@@ -324,7 +306,6 @@ int select_random_soft(int R)
 				}
 			}
 
-//			printf("\n##############\n");
 			printf("%s\n",desc->data);
 			sprintf(command_line,"%s",name);
 			if(!automode) {
@@ -381,10 +362,6 @@ int select_random_soft(int R)
 							}
 						} while ( (feature=find_next_node(feature))!=NULL);
 					}
-
-
-
-//					printf("\n##############\n");
 
 					printf("Software list: %s (%s)\n",list_desc,name);
 					selected_driver = select_random_driver(name,compatibility);
@@ -514,7 +491,7 @@ void read_chd_dir(char * dir)
 {
         DIR * d;
         struct dirent * e;
-	char buf[10000];
+	char buf[BUFFER_SIZE];
 
 	d = opendir(dir);
 	if(d==NULL) {
@@ -550,23 +527,23 @@ void chd_mode()
 	char * tmp;
 	char * tmp2;
 	char context[128];
-	char cmd[10000];
+	char cmd[BUFFER_SIZE];
 	char * driver;
 	int i;
 
 	if(emumode==MAME_MODE) {
-		printf("Reading CHD files in %s\n",MAME_ROMS_DIR);
-		read_chd_dir(MAME_ROMS_DIR);
+		printf("Reading CHD files in %s\n",roms_dir);
+		read_chd_dir(roms_dir);
 	}
 	else {
 		if(forced_list) {
-			sprintf(cmd,"%s/%s",UME_ROMS_DIR,forced_list);
+			sprintf(cmd,"%s/%s",roms_dir,forced_list);
 			printf("Reading CHD files in %s\n",cmd);
 			read_chd_dir(cmd);
 		}
 		else {
-			printf("Reading CHD files in %s\n",UME_ROMS_DIR);
-			read_chd_dir(UME_ROMS_DIR);
+			printf("Reading CHD files in %s\n",roms_dir);
+			read_chd_dir(roms_dir);
 		}
 	}
 
@@ -637,7 +614,6 @@ void * launch_load_listxml(void * arg)
 	char filename[1024];
 	char cmd[1024];
 	struct stat stat_info;
-//	char * type_info = (char *)arg;
 	char * type_info = PARAM_LISTXML;
 
 	data.root_node = NULL;
@@ -645,14 +621,8 @@ void * launch_load_listxml(void * arg)
 	data.xml_filter = NULL;
 	data.current = NULL;
 
-	if( emumode == MAME_MODE ) {
-		sprintf(filename,"%s%s%s",TMP_DIR,MAME_ROOT_NODE,type_info);
-		sprintf(cmd,"%s %s | tee %s ",MAME_BINARY,type_info,filename);
-	}
-	else {
-		sprintf(filename,"%s%s%s",TMP_DIR,UME_ROOT_NODE,type_info);
-		sprintf(cmd,"%s %s | tee %s",UME_BINARY,type_info,filename);
-	}
+	sprintf(filename,"%s%s%s",tmp_dir,root_node,type_info);
+	sprintf(cmd,"%s %s | tee %s ",binary,type_info,filename);
 
 	if(stat(filename,&stat_info)==0 && !update) {
 		sprintf(cmd,"/bin/cat %s",filename);
@@ -668,7 +638,6 @@ void * launch_load_getsoftlist(void * arg)
 	char filename[1024];
 	char cmd[1024];
 	struct stat stat_info;
-//	char * type_info = (char *)arg;
 	char * type_info = PARAM_GETSOFTLIST;
 
 	data.root_node = NULL;
@@ -676,14 +645,8 @@ void * launch_load_getsoftlist(void * arg)
 	data.xml_filter = NULL;
 	data.current = NULL;
 
-	if( emumode == MAME_MODE ) {
-		sprintf(filename,"%s%s%s",TMP_DIR,MAME_ROOT_NODE,type_info);
-		sprintf(cmd,"%s %s | tee %s ",MAME_BINARY,type_info,filename);
-	}
-	else {
-		sprintf(filename,"%s%s%s",TMP_DIR,UME_ROOT_NODE,type_info);
-		sprintf(cmd,"%s %s | tee %s",UME_BINARY,type_info,filename);
-	}
+	sprintf(filename,"%s%s%s",tmp_dir,root_node,type_info);
+	sprintf(cmd,"%s %s | tee %s ",binary,type_info,filename);
 
 	if(stat(filename,&stat_info)==0 && !update ) {
 		sprintf(cmd,"/bin/cat %s",filename);
@@ -706,7 +669,7 @@ void whitelist_mode()
 	int i;
 
 	/* Load list */
-	whitelist = fopen(WHITE_LIST,"r");
+	whitelist = fopen(white_list,"r");
 	while (  getline(&entry,&len,whitelist) !=  -1 ){
 		count++;
 		list=realloc(list,count*sizeof(char *));
@@ -752,6 +715,87 @@ void unset_terminal_mode(void)
 {
 	tcsetattr(fileno(stdin), TCSANOW, &orig_term_attr);
 }
+
+void init()
+{
+
+	char * tmp;
+	char buf[BUFFER_SIZE];
+
+	tmp_dir = getenv("TMP_DIR");
+	if(tmp_dir == NULL) {
+		printf("Please set TMP_DIR environnement variable");
+		exit(-1);
+	}
+
+	if(emumode == UME_MODE) {
+		working_dir = getenv("UME_WORKING_DIR");
+		if(working_dir == NULL) {
+			printf("Please set UME_WORKING_DIR environnement variable");
+			exit(-1);
+		}
+
+		tmp = getenv("UME_BINARY");
+		if(tmp == NULL) {
+			printf("Please set UME_BINARY environnement variable");
+			exit(-1);
+		}
+		strncpy(buf,working_dir,BUFFER_SIZE);
+		strncat(buf,"/",BUFFER_SIZE);
+		strncat(buf,tmp,BUFFER_SIZE);
+		binary = strdup(buf);
+
+		roms_dir = getenv("UME_ROMS_DIR");
+		if(roms_dir == NULL) {
+			printf("Please set UME_ROMS_DIR environnement variable");
+			exit(-1);
+		}
+
+		root_node = strdup(UME_ROOT_NODE);
+	}
+	if(emumode == MAME_MODE) {
+		working_dir = getenv("MAME_WORKING_DIR");
+		if(working_dir == NULL) {
+			printf("Please set MAME_WORKING_DIR environnement variable");
+			exit(-1);
+		}
+
+		tmp = getenv("MAME_BINARY");
+		if(tmp == NULL) {
+			printf("Please set MAME_BINARY environnement variable");
+			exit(-1);
+		}
+		strncpy(buf,working_dir,BUFFER_SIZE);
+		strncat(buf,"/",BUFFER_SIZE);
+		strncat(buf,tmp,BUFFER_SIZE);
+		binary = strdup(buf);
+
+		roms_dir = getenv("MAME_ROMS_DIR");
+		if(roms_dir == NULL) {
+			printf("Please set MAME_ROMS_DIR environnement variable");
+			exit(-1);
+		}
+
+		root_node = strdup(MAME_ROOT_NODE);
+	}
+
+	tmp = getenv("HOME");
+	if(tmp == NULL) {
+		printf("Please set HOME environnement variable");
+		exit(-1);
+	}
+
+	strncpy(buf,tmp,BUFFER_SIZE);
+	strncat(buf,WHITE_LIST,BUFFER_SIZE);
+	white_list=strdup(buf);
+
+	printf("TMP_DIR:     %s\n",tmp_dir);
+	printf("WORKING_DIR: %s\n",working_dir);
+	printf("BINARY:      %s\n",binary);
+	printf("ROMS_DIR:    %s\n",roms_dir);
+	printf("WHITE_LIST:  %s\n",white_list);
+}
+
 int main(int argc, char**argv)
 {
 	int opt_ret;
@@ -810,19 +854,11 @@ int main(int argc, char**argv)
 		}
 	}
 
-	if( emumode == MAME_MODE ) {
-		if(chdir(MAME_WORKING_DIR) == -1) {
-			printf("Failed to change to directory %s\n",MAME_WORKING_DIR);
-			exit(-1);
-		}
-		binary = MAME_BINARY;
-	}
-	else {
-		if(chdir(UME_WORKING_DIR) == -1) {
-			printf("Failed to change to directory %s\n",UME_WORKING_DIR);
-			exit(-1);
-		}
-		binary = UME_BINARY;
+	init();
+
+	if(chdir(working_dir) == -1) {
+		printf("Failed to change to directory %s\n",working_dir);
+		exit(-1);
 	}
 
 	if( whitelistmode ) {
@@ -850,7 +886,7 @@ int main(int argc, char**argv)
 	}
 	else {
 		if(!automode) {
-			whitelist = open(WHITE_LIST,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG|S_IROTH);
+			whitelist = open(white_list,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG|S_IROTH);
 			if(whitelist == -1) {
 				printf("Error openning whitelist\n");
 				exit(1);
