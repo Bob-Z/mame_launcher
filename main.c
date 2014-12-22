@@ -14,7 +14,8 @@
 #define WHITE_LIST "/.config/ume_launcher/whitelist"
 #define MAX_DRIVER (10000)
 #define OPTION_NO_SOUND " -nosound "
-#define AUTO_MODE_OPTION " -nowindow -str 60 "
+#define AUTO_MODE_OPTION "-nowindow"
+#define DURATION_OPTION "-str"
 
 #define BUFFER_SIZE (10000)
 
@@ -47,6 +48,7 @@ int chd_count = 0;
 char * forced_list = NULL;
 
 char option[BUFFER_SIZE] ;
+char auto_mode_option[BUFFER_SIZE] ;
 char command_line[BUFFER_SIZE];
 
 int whitelist; /* whitelist file descriptor */
@@ -70,7 +72,7 @@ int whitelistmode = 0;
 struct termios orig_term_attr;
 struct termios new_term_attr;
 
-const char optstring[] = "?acpmwul:y:n";
+const char optstring[] = "?acpmwul:y:nd:";
 const struct option longopts[] =
         {{ "auto",no_argument,NULL,'a' },
         { "chd",no_argument,NULL,'c' },
@@ -81,6 +83,7 @@ const struct option longopts[] =
         { "list",required_argument,NULL,'l' },
         { "year",required_argument,NULL,'y' },
         { "nosound",no_argument,NULL,'n' },
+        { "duration",required_argument,NULL,'d' },
 	{NULL,0,NULL,0}};
 
 
@@ -322,7 +325,7 @@ int select_random_soft(int R)
 			}
 
 			sleep(1);
-			sprintf(buf,"%s %s %s %s",binary,option,AUTO_MODE_OPTION,command_line);
+			sprintf(buf,"%s %s %s %s",binary,option,auto_mode_option,command_line);
 			printf("%s\n",buf);
 			if(system(buf) == -1 ) {
 				printf("Failed to run command %s\n",buf);
@@ -385,7 +388,7 @@ int select_random_soft(int R)
 					}
 
 					sleep(1);
-					sprintf(buf,"%s %s %s %s",binary,option,AUTO_MODE_OPTION,command_line);
+					sprintf(buf,"%s %s %s %s",binary,option,auto_mode_option,command_line);
 					printf("%s\n",buf);
 					if(system(buf) == -1 ) {
 						printf("Failed to run command %s\n",buf);
@@ -602,7 +605,7 @@ void chd_mode()
 		}
 		else {
 			sleep(1);
-			sprintf(cmd,"%s %s %s %s -cdrom \"%s/%s\"",binary,option,AUTO_MODE_OPTION,driver, chd_list_dir[R%chd_count], chd_list_file[R%chd_count]);
+			sprintf(cmd,"%s %s %s %s -cdrom \"%s/%s\"",binary,option,auto_mode_option,driver, chd_list_dir[R%chd_count], chd_list_file[R%chd_count]);
 			printf("%s\n",cmd);
 			if(system(cmd) == -1 ) {
 				printf("Failed to run command %s\n",cmd);
@@ -701,7 +704,7 @@ void whitelist_mode()
 			if(auto_black_list[i] != NULL ) {
 				continue;
 			}
-			sprintf(buf,"%s %s %s %s",binary,option,AUTO_MODE_OPTION,list[R]);
+			sprintf(buf,"%s %s %s %s",binary,option,auto_mode_option,list[R]);
 		}
 		else {
 			sprintf(buf,"%s %s %s",binary,option,list[R]);
@@ -803,11 +806,11 @@ int main(int argc, char**argv)
 {
 	int opt_ret;
 
-
 	pthread_t thread_xml;
 	pthread_t thread_softlist;
 
 	void * ret;
+	int duration = 60;
 
 	srand ( time(NULL) );
 
@@ -842,20 +845,26 @@ int main(int argc, char**argv)
 			case 'n':
 				strcat(option,OPTION_NO_SOUND);
 				break;
+			case 'd':
+				duration = atoi(optarg);
+				break;
 			default:
 				printf("HELP:\n\n");
 				printf("-a : automatic mode\n");
 				printf("-c : only CHD\n");
-				printf("-p : allow preliminary drivers\n");
-				printf("-m : use MAME only instead of UME\n");
+				printf("-d <seconds> : auto mode run duration\n");
 				printf("-l <list> : only use <list> software list\n");
-				printf("-u : update cache from binaries\n");
-				printf("-y <4 digit year> : only choose drivers later than <year>\n");
+				printf("-m : use MAME only instead of UME\n");
 				printf("-n : no sound\n");
+				printf("-p : allow preliminary drivers\n");
+				printf("-u : update cache from binaries\n");
 				printf("-w : use white list\n");
+				printf("-y <4 digit year> : only choose drivers later than <year>\n");
 				exit(0);
 		}
 	}
+
+	sprintf(auto_mode_option," %s %s %d ",AUTO_MODE_OPTION,DURATION_OPTION,duration);
 
 	init();
 
