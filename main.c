@@ -1,14 +1,10 @@
 //#define system(x) puts(x)
 
-#define UME_MODE 0
-#define MAME_MODE 1
-
 #define MAME_ROOT_NODE "mame"
-#define UME_ROOT_NODE "ume"
 
 #define PARAM_LISTXML "-listxml"
 #define PARAM_GETSOFTLIST "-getsoftlist"
-#define ENTRY_TYPE "game"
+#define ENTRY_TYPE "machine"
 #define SOFTWARELIST "softwarelist"
 
 #define WHITE_LIST "/.config/ume_launcher/whitelist"
@@ -61,7 +57,6 @@ char * driver_black_list[] = { "kccomp", "al520ex", "cpc6128s", "cpc6128f", NULL
 /* Description string to black list (namely for fruit machine) */
 char * desc_black_list[] = { "(MPU4)", "(Scorpion 4)", NULL };
 
-int emumode = UME_MODE;
 int automode = 0;
 int chdmode = 0;
 int preliminarymode = 0;
@@ -72,12 +67,11 @@ int whitelistmode = 0;
 struct termios orig_term_attr;
 struct termios new_term_attr;
 
-const char optstring[] = "?acpmwul:y:nd:";
+const char optstring[] = "?acpwul:y:nd:";
 const struct option longopts[] =
         {{ "auto",no_argument,NULL,'a' },
         { "chd",no_argument,NULL,'c' },
         { "preliminary",no_argument,NULL,'p' },
-        { "mame",no_argument,NULL,'m' },
         { "update",no_argument,NULL,'u' },
         { "whitelist",no_argument,NULL,'w' },
         { "list",required_argument,NULL,'l' },
@@ -536,22 +530,15 @@ void chd_mode()
 	char * driver;
 	int i;
 
-	if(emumode==MAME_MODE) {
+	if(forced_list) {
+		sprintf(cmd,"%s/%s",roms_dir,forced_list);
+		printf("Reading CHD files in %s\n",cmd);
+		read_chd_dir(cmd);
+	}
+	else {
 		printf("Reading CHD files in %s\n",roms_dir);
 		read_chd_dir(roms_dir);
 	}
-	else {
-		if(forced_list) {
-			sprintf(cmd,"%s/%s",roms_dir,forced_list);
-			printf("Reading CHD files in %s\n",cmd);
-			read_chd_dir(cmd);
-		}
-		else {
-			printf("Reading CHD files in %s\n",roms_dir);
-			read_chd_dir(roms_dir);
-		}
-	}
-
 	
 	printf("%d CHD files found\n",chd_count);
 
@@ -734,56 +721,29 @@ void init()
 		exit(-1);
 	}
 
-	if(emumode == UME_MODE) {
-		working_dir = getenv("UME_WORKING_DIR");
-		if(working_dir == NULL) {
-			printf("Please set UME_WORKING_DIR environnement variable");
-			exit(-1);
-		}
-
-		tmp = getenv("UME_BINARY");
-		if(tmp == NULL) {
-			printf("Please set UME_BINARY environnement variable");
-			exit(-1);
-		}
-		strncpy(buf,working_dir,BUFFER_SIZE);
-		strncat(buf,"/",BUFFER_SIZE);
-		strncat(buf,tmp,BUFFER_SIZE);
-		binary = strdup(buf);
-
-		roms_dir = getenv("UME_ROMS_DIR");
-		if(roms_dir == NULL) {
-			printf("Please set UME_ROMS_DIR environnement variable");
-			exit(-1);
-		}
-
-		root_node = strdup(UME_ROOT_NODE);
+	working_dir = getenv("MAME_WORKING_DIR");
+	if(working_dir == NULL) {
+		printf("Please set MAME_WORKING_DIR environnement variable");
+		exit(-1);
 	}
-	if(emumode == MAME_MODE) {
-		working_dir = getenv("MAME_WORKING_DIR");
-		if(working_dir == NULL) {
-			printf("Please set MAME_WORKING_DIR environnement variable");
-			exit(-1);
-		}
 
-		tmp = getenv("MAME_BINARY");
-		if(tmp == NULL) {
-			printf("Please set MAME_BINARY environnement variable");
-			exit(-1);
-		}
-		strncpy(buf,working_dir,BUFFER_SIZE);
-		strncat(buf,"/",BUFFER_SIZE);
-		strncat(buf,tmp,BUFFER_SIZE);
-		binary = strdup(buf);
-
-		roms_dir = getenv("MAME_ROMS_DIR");
-		if(roms_dir == NULL) {
-			printf("Please set MAME_ROMS_DIR environnement variable");
-			exit(-1);
-		}
-
-		root_node = strdup(MAME_ROOT_NODE);
+	tmp = getenv("MAME_BINARY");
+	if(tmp == NULL) {
+		printf("Please set MAME_BINARY environnement variable");
+		exit(-1);
 	}
+	strncpy(buf,working_dir,BUFFER_SIZE);
+	strncat(buf,"/",BUFFER_SIZE);
+	strncat(buf,tmp,BUFFER_SIZE);
+	binary = strdup(buf);
+
+	roms_dir = getenv("MAME_ROMS_DIR");
+	if(roms_dir == NULL) {
+		printf("Please set MAME_ROMS_DIR environnement variable");
+		exit(-1);
+	}
+
+	root_node = strdup(MAME_ROOT_NODE);
 
 	tmp = getenv("HOME");
 	if(tmp == NULL) {
@@ -827,9 +787,6 @@ int main(int argc, char**argv)
 			case 'p':
 				preliminarymode = 1;
 				break;
-			case 'm':
-				emumode = MAME_MODE;
-				break;
 			case 'u':
 				update = 1;
 				break;
@@ -854,7 +811,6 @@ int main(int argc, char**argv)
 				printf("-c : only CHD\n");
 				printf("-d <seconds> : auto mode run duration\n");
 				printf("-l <list> : only use <list> software list\n");
-				printf("-m : use MAME only instead of UME\n");
 				printf("-n : no sound\n");
 				printf("-p : allow preliminary drivers\n");
 				printf("-u : update cache from binaries\n");
