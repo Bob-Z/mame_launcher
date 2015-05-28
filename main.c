@@ -28,6 +28,7 @@
 #include <getopt.h>
 #include <errno.h>
 #include <pthread.h>
+#include "misc.h"
 
 char * tmp_dir=NULL;
 char * working_dir=NULL;
@@ -715,11 +716,7 @@ void init()
 	char * tmp;
 	char buf[BUFFER_SIZE];
 
-	tmp_dir = getenv("TMP_DIR");
-	if(tmp_dir == NULL) {
-		printf("Please set TMP_DIR environnement variable");
-		exit(-1);
-	}
+	tmp_dir = get_tmp_dir();
 
 	working_dir = getenv("MAME_WORKING_DIR");
 	if(working_dir == NULL) {
