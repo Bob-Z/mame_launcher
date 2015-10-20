@@ -71,7 +71,9 @@ int whitelist; /* whitelist file descriptor */
 /* Names of directories to skip during CHD scanning */
 char * chd_black_list[] = { "pcecd", "cdi", "pippin", NULL} ;
 /* Names of drivers to skip when running in auto mode */
-char * auto_black_list[] = { "cdimono1", "cpc464", "cpc664", "cpc6128", "al520ex", "kccomp", "cpc6128f", "cpc6128s", "ti99_4e", "x1turbo40", "kontiki", "bbcb", "bbcbp", "mz700" , "bbcm", "bbcbp128", "kc85_5", "kc85_4", "kc85_3", "kc85_2", "mpz80",  "lviv", "abc80", "orionzms", "orionz80", "orionpro", "orionms", "orionidm", "orionide", "orion128", "specimx", "specialp", "specialm", "special", "pioner", "lik", "bbcmc_ar", "bbcmc", "bbcb_us", "bbcb_us", "bbcb_de", "ti99_4qi", "ti99_4qe", "ti99_4ev", "ti99_4ae", "ti99_4a", "ti99_4", "adam", "apogee", "bbcmt", "bbcmarm", "bbcmaiv", "bbcm512", "phc64", "ep64", "ep128", NULL } ;
+char * auto_black_list[] = { "cdimono1", "cpc464", "cpc664", "cpc6128", "al520ex", "kccomp", "cpc6128f", "cpc6128s", NULL } ;
+/* Names of softlist to skip when running in auto mode */
+char * auto_black_softlist[] = { "tvc_flop", "ti99_cart", "bbcb_cass", "msx1_cass", "lviv", "kc_cass", "spc1000_cass", "sol20_cass", "mtx_cass", "dai_cass", "ep64_flop", NULL } ;
 /* Names of drivers to skip when selecting a driver */
 char * driver_black_list[] = { "kccomp", "al520ex", "cpc6128s", "cpc6128f", NULL };
 /* Description string to black list (namely for fruit machine) */
@@ -356,6 +358,22 @@ int select_random_soft(int R)
 			do {
 				if(count == R) {
 					name = find_attr(current,"name");
+
+					if( automode ) {
+						i = 0;
+						while(auto_black_softlist[i]!=NULL) {
+							if(!strcmp(auto_black_softlist[i],name)) {
+								printf("softlist %s black listed for auto-mode\n",name);
+								break;
+							}
+							i++;
+						}
+
+						if(auto_black_softlist[i]!=NULL){
+							return 0;
+						}
+					}
+
 					list_desc = find_attr(current,"description");
 					soft_name = find_attr(soft_list,"name");
 					desc_soft = find_first_node(soft_list,"description");
