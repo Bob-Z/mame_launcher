@@ -71,7 +71,7 @@ int whitelist; /* whitelist file descriptor */
 /* Names of directories to skip during CHD scanning */
 char * chd_black_list[] = { "pcecd", "cdi", "pippin", NULL} ;
 /* Names of drivers to skip when running in auto mode */
-char * auto_black_list[] = { "cdimono1", "cpc464", "cpc664", "cpc6128", "al520ex", "kccomp", "cpc6128f", "cpc6128s", "bbcb_de", NULL } ;
+char * auto_black_list[] = { "cdimono1", "cpc464", "cpc664", "cpc6128", "al520ex", "kccomp", "cpc6128f", "cpc6128s", "bbcb_de", "z1013", NULL } ;
 /* Names of softlist to skip when running in auto mode */
 char * auto_black_softlist[] = { "tvc_flop", "ti99_cart", "bbca_cass", "bbcb_cass", "msx1_cass", "lviv", "kc_cass", "spc1000_cass", "sol20_cass", "mtx_cass", "dai_cass", "ep64_flop", "pet_cass", "orion_cass", "mz700_cass", "special_cass", "cbm2_flop", "cgenie_cass", "jupace_cass", "bbcm_flop", "fm7_cass", "mc10", "x07_cass", NULL } ;
 /* Names of drivers to skip when selecting a driver */
