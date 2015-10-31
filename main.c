@@ -29,7 +29,7 @@
 #define WHITE_LIST "/.config/mame_launcher/whitelist"
 #define MAX_DRIVER (10000)
 #define OPTION_NO_SOUND " -nosound "
-#define AUTO_MODE_OPTION "-nowindow"
+#define AUTO_MODE_OPTION "-nowindow -ui_active "
 #define DURATION_OPTION "-str"
 
 #define BUFFER_SIZE (10000)
