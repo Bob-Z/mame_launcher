@@ -565,6 +565,7 @@ void chd_mode()
 	char * tmp2;
 	char context[128];
 	char cmd[BUFFER_SIZE];
+	char cdrom_opt[BUFFER_SIZE];
 	char * driver;
 	int i;
 
@@ -615,11 +616,15 @@ void chd_mode()
 		if(driver == NULL) {
 			driver = context;
 			printf("\nSetting driver name to directory name\n");
+			sprintf(cdrom_opt," ");
+		}
+		else {
+			sprintf(cdrom_opt," -cdrom \"%s/%s\"",chd_list_dir[R%chd_count], chd_list_file[R%chd_count]);
 		}
 	
 		printf(	"\n%s\n%s\n",driver,chd_list_file[R%chd_count]);
 		if(!automode) {
-			sprintf(cmd,"%s %s %s -cdrom \"%s/%s\"\n",binary, option, driver, chd_list_dir[R%chd_count], chd_list_file[R%chd_count]);
+			sprintf(cmd,"%s %s %s %s\n",binary, option, driver, cdrom_opt);
 			printf("Space to skip...\n");
 			if( getchar() != 0x20 ) {
 				printf("%s\n",cmd);
@@ -630,7 +635,7 @@ void chd_mode()
 		}
 		else {
 			sleep(1);
-			sprintf(cmd,"%s %s %s %s -cdrom \"%s/%s\"",binary,option,auto_mode_option,driver, chd_list_dir[R%chd_count], chd_list_file[R%chd_count]);
+			sprintf(cmd,"%s %s %s %s %s",binary,option,auto_mode_option,driver,cdrom_opt);
 			printf("%s\n",cmd);
 			if(system(cmd) == -1 ) {
 				printf("Failed to run command %s\n",cmd);
