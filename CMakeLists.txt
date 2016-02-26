@@ -1,10 +1,14 @@
 cmake_minimum_required (VERSION 3.2.2)
 set(PROJECT_NAME mame_launcher)
-project ( ${PROJECT_NAME} C CXX )
+project ( ${PROJECT_NAME} C )
+
+#Debug Release RelWithDebInfo MinSizeRel
+#SET(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 if(MSVC)
 elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g -O0 -D_FILE_OFFSET_BITS=64")
+#  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g -O0 -D_FILE_OFFSET_BITS=64")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -g -O0 -D_FILE_OFFSET_BITS=64")
 endif()
 
 #Add pthread
