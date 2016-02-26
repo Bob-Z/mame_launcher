@@ -89,11 +89,12 @@ int minyear = 0;
 int update = 0;
 int whitelistmode = 0;
 int coinonly = 0;
+int gambling = 0;
 
 struct termios orig_term_attr;
 struct termios new_term_attr;
 
-const char optstring[] = "?acpwul:y:nd:o";
+const char optstring[] = "?acpwul:y:nd:og";
 const struct option longopts[] =
         {{ "auto",no_argument,NULL,'a' },
         { "chd",no_argument,NULL,'c' },
@@ -105,16 +106,18 @@ const struct option longopts[] =
         { "nosound",no_argument,NULL,'n' },
         { "duration",required_argument,NULL,'d' },
         { "coinonly",no_argument,NULL,'o' },
+        { "gambling",no_argument,NULL,'g' },
 	{NULL,0,NULL,0}};
 
 
-static char *filter[]= { "dipswitch", "dipvalue", "chip", "display", "sound", "control", "configuration", "confsetting", "adjuster", "device", "instance", "extension", "slot", "slotoption", "ramoption", "publisher", "info", "sharedfeat", "manufacturer", "biosset", "device_ref", "sample", NULL };
+static char *filter[]= { "dipswitch", "dipvalue", "chip", "display", "sound", "configuration", "confsetting", "adjuster", "device", "instance", "extension", "slot", "slotoption", "ramoption", "publisher", "info", "sharedfeat", "manufacturer", "biosset", "device_ref", "sample", NULL };
 
 int is_machine_ok(llist_t * machine)
 {
 	llist_t * desc;
 	llist_t * drv;
 	llist_t * input;
+	llist_t * control;
 	llist_t * y;
 	char * name;
 	char * ismechanical;
@@ -122,6 +125,7 @@ int is_machine_ok(llist_t * machine)
 	char * runnable;
 	char * coins;
 	char * year;
+	char * type;
 	char * driver_status;
 	int i;
 
@@ -139,13 +143,26 @@ int is_machine_ok(llist_t * machine)
 	}
 
 	// coin only
+	input = find_first_node(machine,"input");
 	if(coinonly) {
-		input = find_first_node(machine,"input");
 		coins = find_attr(input,"coins");
 
 		if( coins==NULL || coins[0]==0 ) {
 			printf(" - driver %s(%s) : is not coin operated, skipping\n",desc->data,name);
 			return false;
+		}
+	}
+
+	// gambling
+	if(!gamgling) {
+		control = find_first_node(input,"control");
+		while( control ) {
+			type = find_attr(control,"type");
+			if(!strcmp(type,"gambling")){
+				printf(" - driver %s(%s) is gambling, skipping\n",desc->data,name);
+				return false;
+			}
+			control = find_next_node(control);
 		}
 	}
 
@@ -209,7 +226,7 @@ int is_machine_ok(llist_t * machine)
 		return false;
 	}
 
-	// Description balck list
+	// Description black list
 	i = 0;
 	while( desc_black_list[i] != NULL ) {
 		if(strstr(desc->data,desc_black_list[i])){
@@ -294,18 +311,12 @@ int select_random_soft(int R)
 	int count = 0;
 	llist_t * machine;
 	llist_t * soft_list;
-	llist_t * input;
-	llist_t * driver;
 	llist_t * desc;
 	llist_t * desc_soft;
 	llist_t * part;
 	llist_t * feature;
-	llist_t * y;
 	char * name;
 	char * soft_name;
-	char * coins;
-	char * driver_status;
-	char * year;
 	char * list_desc;
 	char * selected_driver;
 	char * compatibility;
@@ -816,22 +827,25 @@ int main(int argc, char**argv)
 	while((opt_ret = getopt_long(argc, argv, optstring, longopts, NULL))!=-1) {
 		switch(opt_ret) {
 			case 'a':
-				automode = 1;
+				automode = true;
 				break;
 			case 'c':
-				chdmode = 1;
+				chdmode = true;
 				break;
 			case 'p':
-				preliminarymode = 1;
+				preliminarymode = true;
 				break;
 			case 'u':
-				update = 1;
+				update = true;
 				break;
 			case 'w':
-				whitelistmode = 1;
+				whitelistmode = true;
 				break;
 			case 'o':
-				coinonly = 1;
+				coinonly = true;
+				break;
+			case 'g':
+				gambling = true;
 				break;
 			case 'l':
 				forced_list = optarg;
@@ -850,6 +864,7 @@ int main(int argc, char**argv)
 				printf("-a : automatic mode\n");
 				printf("-c : only CHD\n");
 				printf("-d <seconds> : auto mode run duration\n");
+				printf("-g : allow gambling games (default is no gambling game)\n");
 				printf("-l <list> : only use <list> software list\n");
 				printf("-n : no sound\n");
 				printf("-o : coin operated nachine only\n");
