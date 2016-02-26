@@ -34,6 +34,9 @@
 
 #define BUFFER_SIZE (10000)
 
+#define false (0)
+#define true (1)
+
 #include <stdio.h>
 #include <string.h>
 #include <dirent.h>
@@ -107,108 +110,156 @@ const struct option longopts[] =
 
 static char *filter[]= { "dipswitch", "dipvalue", "chip", "display", "sound", "control", "configuration", "confsetting", "adjuster", "device", "instance", "extension", "slot", "slotoption", "ramoption", "publisher", "info", "sharedfeat", "manufacturer", "biosset", "device_ref", "sample", NULL };
 
-char * select_random_driver(char * list, char * compatibility)
+int is_machine_ok(llist_t * machine)
 {
-	llist_t * current;
-	llist_t * soft_list;
-	llist_t * des;
+	llist_t * desc;
 	llist_t * drv;
 	llist_t * input;
 	llist_t * y;
 	char * name;
-	char * soft_name;
-	char * driver_status;
+	char * ismechanical;
+	char * isdevice;
+	char * runnable;
 	char * coins;
 	char * year;
+	char * driver_status;
+	int i;
+
+	name =find_attr(machine,"name");
+	desc = find_first_node(machine,"description");
+
+	// Driver black list
+	i = 0;
+	while( driver_black_list[i] != NULL ) {
+		if(!strcmp(name,driver_black_list[i])){
+			printf(" - driver %s(%s) is black-listed, skipping\n",desc->data,name);
+			return false;
+		}
+		i++;
+	}
+
+	// coin only
+	if(coinonly) {
+		input = find_first_node(machine,"input");
+		coins = find_attr(input,"coins");
+
+		if( coins==NULL || coins[0]==0 ) {
+			printf(" - driver %s(%s) : is not coin operated, skipping\n",desc->data,name);
+			return false;
+		}
+	}
+
+	//minimal year
+	if(minyear > 0) {
+		y = find_first_node(machine,"year");
+		year = y->data;
+		if(year==NULL || year[0]==0){
+			printf(" - driver %s(%s) : has no year, skipping\n",desc->data,name);
+			return false;
+		}
+
+		if( atoi(year) < minyear ) {
+			printf(" - driver %s(%s) : is too old (%s), skipping\n",desc->data,name,year);
+			return false;
+		}
+		printf(" - %s(%s) year is %s\n",desc->data,name,year);
+	}
+
+	// driver status
+	drv = find_first_node(machine,"driver");
+	driver_status = find_attr(drv,"status");
+	if(!strcmp(driver_status,"preliminary")) {
+		if(!preliminarymode) {
+			printf(" - driver %s(%s) is preliminary, skipping\n",desc->data,name);
+			return false;
+		}
+		printf(" - driver %s(%s) is preliminary\n",desc->data,name);
+	}
+
+	// auto mode
+	if( automode ) {
+		i = 0;
+		while(auto_black_list[i]!=NULL) {
+			if(!strcmp(auto_black_list[i],name)) {
+				printf("%s black listed for auto-mode\n",name);
+				return false;
+			}
+			i++;
+		}
+	}
+
+	// mechanical
+	ismechanical = find_attr(machine,"ismechanical");
+	if(!strcmp(ismechanical,"yes")) {
+		printf(" - %s(%s) is mechanical, skipping\n",desc->data,name);
+		return false;
+	}
+
+	// device
+	isdevice = find_attr(machine,"isdevice");
+	if(!strcmp(isdevice,"yes")) {
+		printf(" - %s(%s) is a device, skipping\n",desc->data,name);
+		return false;
+	}
+
+	// runnable
+	runnable = find_attr(machine,"runnable");
+	if(!strcmp(runnable,"no")) {
+		printf(" - %s(%s) is not runnable, skipping\n",desc->data,name);
+		return false;
+	}
+
+	// Description balck list
+	i = 0;
+	while( desc_black_list[i] != NULL ) {
+		if(strstr(desc->data,desc_black_list[i])){
+			printf(" - driver %s(%s) is black-listed by its description, skipping\n",desc->data,name);
+			return false;
+		}
+		i++;
+	}
+
+	return true;
+}
+
+char * select_random_driver(char * list, char * compatibility)
+{
+	llist_t * machine;
+	llist_t * soft_list;
+	llist_t * des;
+	char * name;
+	char * soft_name;
+	char * compat;
 	char * driver[MAX_DRIVER];
 	char * desc[MAX_DRIVER];
-	char * compat;
 	int driver_count = 0;
 	int R;
 	int i;
 
-	current = find_first_node(listxml,ENTRY_TYPE);
+	machine = find_first_node(listxml,ENTRY_TYPE);
 	do {
-		soft_list = find_first_node(current,"softwarelist");
+		soft_list = find_first_node(machine,"softwarelist");
 		if(soft_list == NULL ) {
 			continue;
 		}
 		do {
 			soft_name = find_attr(soft_list,"name");
 			if(!strcmp(soft_name,list)) {
-				name =find_attr(current,"name");
-				des = find_first_node(current,"description");
-				/* Driver black list */
-				i = 0;
-				while( driver_black_list[i] != NULL ) {
-					if(!strcmp(name,driver_black_list[i])){
-						printf(" - driver %s(%s) is black-listed, skipping\n",des->data,name);
-						break;
-					}
-					i++;
-				}
-				if( driver_black_list[i] != NULL ) {
-					break;
+				name =find_attr(machine,"name");
+				des = find_first_node(machine,"description");
+
+				if( ! is_machine_ok(machine) ) {
+					continue;
 				}
 
-				/* Filter */
-				if(coinonly) {
-					input = find_first_node(current,"input");
-					coins = find_attr(input,"coins");
-
-					if( coins==NULL || coins[0]==0 ) {
-						printf(" - driver %s(%s) : is not coin operated, skipping\n",des->data,name);
-						break;
-					}
-				}
-
-				if(minyear > 0) {
-					y = find_first_node(current,"year");
-					year = y->data;
-					if(year==NULL || year[0]==0){
-						printf(" - driver %s(%s) : has no year, skipping\n",des->data,name);
-						break;
-					}
-
-					if( atoi(year) < minyear ) {
-						printf(" - driver %s(%s) : is too old (%s), skipping\n",des->data,name,year);
-						break;
-					}
-					printf(" - %s(%s) year is %s\n",des->data,name,year);
-				}
-
-				drv = find_first_node(current,"driver");
-				driver_status = find_attr(drv,"status");
-				if(!strcmp(driver_status,"preliminary")) {
-					if(!preliminarymode) {
-						printf(" - driver %s(%s) is preliminary, skipping\n",des->data,name);
-						break;
-					}
-					printf(" - driver %s(%s) is preliminary\n",des->data,name);
-				}
-
+				// compatibility
 				if(compatibility) {
 					compat = find_attr(soft_list,"filter");
 					if(compat) {
 						if(strcmp(compat,compatibility)) {
 							printf(" - driver %s(%s) is not compatible, skipping\n",des->data,name);
-							break;
+							continue;
 						}
-					}
-				}
-
-				if( automode ) {
-					i = 0;
-					while(auto_black_list[i]!=NULL) {
-						if(!strcmp(auto_black_list[i],name)) {
-							printf("%s black listed for auto-mode\n",name);
-							break;
-						}
-						i++;
-					}
-
-					if(auto_black_list[i]!=NULL){
-						continue;
 					}
 				}
 
@@ -218,7 +269,7 @@ char * select_random_driver(char * list, char * compatibility)
 			}
 		} while ( (soft_list=find_next_node(soft_list)) != NULL );
 
-	} while ( (current=find_next_node(current)) != NULL );
+	} while ( (machine=find_next_node(machine)) != NULL );
 
 	printf("%d compatible drivers for list %s",driver_count,list);
 	if( driver_count == 0 ) {
@@ -252,9 +303,6 @@ int select_random_soft(int R)
 	llist_t * y;
 	char * name;
 	char * soft_name;
-	char * ismechanical;
-	char * isdevice;
-	char * runnable;
 	char * coins;
 	char * driver_status;
 	char * year;
@@ -268,84 +316,12 @@ int select_random_soft(int R)
 	machine = find_first_node(listxml,ENTRY_TYPE);
 	do {
 		if(count == R) {
+			if( ! is_machine_ok(machine) ) {
+				return 0;
+			}
+
 			name = find_attr(machine,"name");
 			desc = find_first_node(machine,"description");
-
-			ismechanical = find_attr(machine,"ismechanical");
-			if(!strcmp(ismechanical,"yes")) {
-				printf(" - %s(%s) is mechanical, skipping\n",desc->data,name);
-				return 0;
-			}
-			isdevice = find_attr(machine,"isdevice");
-			if(!strcmp(isdevice,"yes")) {
-				printf(" - %s(%s) is a device, skipping\n",desc->data,name);
-				return 0;
-			}
-			runnable = find_attr(machine,"runnable");
-			if(!strcmp(runnable,"no")) {
-				printf(" - %s(%s) is not runnable, skipping\n",desc->data,name);
-				return 0;
-			}
-
-			if(coinonly) {
-				input = find_first_node(machine,"input");
-				coins = find_attr(input,"coins");
-
-				if( coins==NULL || coins[0]==0 ) {
-					printf(" - driver %s(%s) : is not coin operated, skipping\n",desc->data,name);
-					return 0;
-				}
-			}
-
-			if(minyear > 0) {
-				y = find_first_node(machine,"year");
-				year = y->data;
-				if(year==NULL || year[0]==0){
-					printf(" - driver %s(%s) : has no year, skipping\n",desc->data,name);
-					return 0;
-				}
-
-				if( atoi(year) < minyear ) {
-					printf(" - driver %s(%s) : is too old (%s), skipping\n",desc->data,name,year);
-					return 0;
-				}
-				printf(" - %s(%s) year is %s\n",desc->data,name,year);
-			}
-
-			driver = find_first_node(machine,"driver");
-			driver_status = find_attr(driver,"status");
-			if(!strcmp(driver_status,"preliminary")) {
-				if(!preliminarymode) {
-					printf(" - %s(%s) is preliminary, skipping\n",desc->data,name);
-					return 0;
-				}
-				printf(" - %s(%s) is preliminary\n",desc->data,name);
-			}
-
-			/* Description black list */
-			i = 0;
-			while( desc_black_list[i] != NULL ) {
-				if(strstr(desc->data,desc_black_list[i])){
-					printf(" - driver %s(%s) is black-listed by its description, skipping\n",desc->data,name);
-					break;
-				}
-				i++;
-			}
-			if( desc_black_list[i] != NULL ) {
-			return 0;
-			}
-
-			/* check auto-mode black-list */
-			if( automode ) {
-				i = 0;
-				while(auto_black_list[i]!=NULL) {
-					if(!strcmp(auto_black_list[i],name)) {
-						printf("%s black listed for auto-mode\n",name);
-						return 0;
-					}
-					i++;
-				}
-			}
 
 			printf("%s\n",desc->data);
 			sprintf(command_line,"%s",name);
