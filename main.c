@@ -154,7 +154,7 @@ int is_machine_ok(llist_t * machine)
 	}
 
 	// gambling
-	if(!gamgling) {
+	if(!gambling) {
 		control = find_first_node(input,"control");
 		while( control ) {
 			type = find_attr(control,"type");
