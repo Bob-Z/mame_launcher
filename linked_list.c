@@ -189,6 +189,10 @@ llist_t * find_first_node(llist_t * list, const char * elem){
 	llist_t * l;	
 
 	l = get_child(list);
+	if( l==NULL ) {
+		return NULL;
+	}
+
 	do {
 		if( strcmp(elem, get_name(l)) == 0 ) {
 			return(l);
