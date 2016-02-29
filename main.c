@@ -667,7 +667,7 @@ void * launch_load_listxml(void * arg)
 	data.current = NULL;
 
 	sprintf(filename,"%s%s%s",tmp_dir,MAME_ROOT_NODE,type_info);
-	sprintf(cmd,"%s %s > %s ",binary,type_info,filename);
+	sprintf(cmd,"%s %s | tee %s ",binary,type_info,filename);
 
 	if(stat(filename,&stat_info)==0 && !update) {
 		sprintf(cmd,"/bin/cat %s",filename);
@@ -690,7 +690,7 @@ void * launch_load_getsoftlist(void * arg)
 	data.xml_filter = NULL;
 	data.current = NULL;
 
-	sprintf(filename,"%s%s%s",tmp_dir,root_node,type_info);
+	sprintf(filename,"%s%s%s",tmp_dir,MAME_ROOT_NODE,type_info);
 	sprintf(cmd,"%s %s | tee %s ",binary,type_info,filename);
 
 	if(stat(filename,&stat_info)==0 && !update ) {
