@@ -447,7 +447,7 @@ int select_random_soft(int R)
 
 void normal_mode()
 {
-	llist_t * current;
+	llist_t * machine;
 	llist_t * soft_list;
 	int entry_count;
 	int softlist_count = -1;
@@ -459,9 +459,9 @@ void normal_mode()
 	int forced_list_count = 0;
 	int count_forced_soft = 0;
 
-	current = find_first_node(listxml,ENTRY_TYPE);
+	machine = find_first_node(listxml,ENTRY_TYPE);
 	entry_count = 1;
-	while((current=find_next_node(current))!=NULL) {
+	while((machine=find_next_node(machine))!=NULL) {
 		entry_count++;
 	}
 	printf("%d entries\n",entry_count);
@@ -469,26 +469,26 @@ void normal_mode()
 	if( softlist != NULL ) {
 		softlist_count=0;
 		software_count=0;
-		current = find_first_node(softlist,SOFTWARELIST);
+		machine = find_first_node(softlist,SOFTWARELIST);
 		do {
 			softlist_count ++;
 			count_forced_soft = 0;
 
 			if( forced_list ) {
-				list_name = find_attr(current,"name");
+				list_name = find_attr(machine,"name");
 				if(!strcmp(forced_list,list_name)) {
 					forced_list_start = software_count;
 					count_forced_soft = 1;
 				}
 			}
-			soft_list = find_first_node(current,"software");
+			soft_list = find_first_node(machine,"software");
 			do {
 				software_count++;
 				if(count_forced_soft) {
 					forced_list_count++;
 				}
 			} while((soft_list=find_next_node(soft_list))!=NULL);
-		} while((current=find_next_node(current))!=NULL);
+		} while((machine=find_next_node(machine))!=NULL);
 	}
 	printf("%d software lists\n",softlist_count);
 	printf("%d softwares\n",software_count);
