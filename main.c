@@ -26,7 +26,8 @@
 #define ENTRY_TYPE "machine"
 #define SOFTWARELIST "softwarelist"
 
-#define WHITE_LIST "/.config/mame_launcher/whitelist"
+#define CONFIG_DIR "/.config/mame_launcher"
+#define WHITE_LIST CONFIG_DIR "/whitelist"
 #define MAX_DRIVER (10000)
 #define OPTION_NO_SOUND " -nosound "
 #define AUTO_MODE_OPTION "-nowindow -ui_active "
@@ -57,7 +58,7 @@ char * working_dir=NULL;
 char * binary=NULL;
 char * roms_dir=NULL;
 char * root_node=NULL;
-char * white_list=NULL;
+char * whitelist_filename=NULL;
 
 llist_t * listxml;
 llist_t * softlist;
@@ -714,7 +715,7 @@ void whitelist_mode()
 	int i;
 
 	/* Load list */
-	whitelist = fopen(white_list,"r");
+	whitelist = fopen(whitelist_filename,"r");
 	while (  getline(&entry,&len,whitelist) !=  -1 ){
 		count++;
 		list=realloc(list,count*sizeof(char *));
@@ -801,13 +802,13 @@ void init()
 
 	strncpy(buf,tmp,BUFFER_SIZE);
 	strncat(buf,WHITE_LIST,BUFFER_SIZE);
-	white_list=strdup(buf);
+	whitelist_filename=strdup(buf);
 
 	printf("TMP_DIR:     %s\n",tmp_dir);
 	printf("WORKING_DIR: %s\n",working_dir);
 	printf("BINARY:      %s\n",binary);
 	printf("ROMS_DIR:    %s\n",roms_dir);
-	printf("WHITE_LIST:  %s\n",white_list);
+	printf("WHITE_LIST:  %s\n",whitelist_filename);
 }
 
 int main(int argc, char**argv)
@@ -910,7 +911,8 @@ int main(int argc, char**argv)
 	}
 	else {
 		if(!automode) {
-			whitelist = open(white_list,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG|S_IROTH);
+			mkdir(CONFIG_DIR,0777);
+			whitelist = open(whitelist_filename,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG|S_IROTH);
 			if(whitelist == -1) {
 				printf("Error openning whitelist\n");
 				exit(1);
