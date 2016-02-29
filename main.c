@@ -28,6 +28,7 @@
 
 #define CONFIG_DIR "/.config/mame_launcher"
 #define WHITE_LIST CONFIG_DIR "/whitelist"
+#define VERSION_FILE CONFIG_DIR "/version"
 #define MAX_DRIVER (10000)
 #define OPTION_NO_SOUND " -nosound "
 #define AUTO_MODE_OPTION "-nowindow -ui_active "
@@ -796,6 +797,18 @@ void init()
 	printf("WHITE_LIST:  %s\n",whitelist_filename);
 }
 
+static void get_version()
+{
+	FILE *fpipe;
+	char buffer[1024];
+
+	sprintf(buffer,"%s -h",binary);
+	fpipe = (FILE*)popen(buffer,"r");
+
+	fgets( buffer, sizeof buffer, fpipe );
+	printf("MAME version string: %s\n",buffer);
+}
+
 int main(int argc, char**argv)
 {
 	int opt_ret;
@@ -874,6 +887,8 @@ int main(int argc, char**argv)
 	if( whitelistmode ) {
 		whitelist_mode();
 	}
+
+	get_version();
 
 	printf("Loading lists\n");
 	pthread_create(&thread_xml,NULL,launch_load_listxml,NULL);
