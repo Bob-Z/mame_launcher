@@ -145,6 +145,7 @@ void CharacterHandler(void *userData,const XML_Char *s,int len)
 
         LoadXML
 
+"filter" skips some entry name to save both loading speed and memory consumption
 ****************************************************************************/
 
 llist_t *LoadXML(const char * path,char ** filter)
