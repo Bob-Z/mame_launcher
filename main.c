@@ -80,7 +80,7 @@ char * auto_black_softlist[] = { "tvc_flop", "ti99_cart", "bbca_cass", "bbcb_cas
 /* Names of drivers to skip when selecting a driver */
 char * driver_black_list[] = { "kccomp", "al520ex", "cpc6128s", "cpc6128f", NULL };
 /* Description string to black list (namely for fruit machine) */
-char * desc_black_list[] = { "(MPU4)", "(Scorpion 4)", NULL };
+char * desc_black_list[] = { "(MPU4)", "(Scorpion 4)", "Player's Edge Plus", NULL };
 
 int automode = 0;
 int chdmode = 0;
