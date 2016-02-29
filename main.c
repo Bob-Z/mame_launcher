@@ -57,7 +57,6 @@ char * tmp_dir=NULL;
 char * working_dir=NULL;
 char * binary=NULL;
 char * roms_dir=NULL;
-char * root_node=NULL;
 char * whitelist_filename=NULL;
 
 llist_t * listxml;
@@ -667,8 +666,8 @@ void * launch_load_listxml(void * arg)
 	data.xml_filter = NULL;
 	data.current = NULL;
 
-	sprintf(filename,"%s%s%s",tmp_dir,root_node,type_info);
-	sprintf(cmd,"%s %s | tee %s ",binary,type_info,filename);
+	sprintf(filename,"%s%s%s",tmp_dir,MAME_ROOT_NODE,type_info);
+	sprintf(cmd,"%s %s > %s ",binary,type_info,filename);
 
 	if(stat(filename,&stat_info)==0 && !update) {
 		sprintf(cmd,"/bin/cat %s",filename);
@@ -791,8 +790,6 @@ void init()
 		printf("Please set MAME_ROMS_DIR environnement variable");
 		exit(-1);
 	}
-
-	root_node = strdup(MAME_ROOT_NODE);
 
 	tmp = getenv("HOME");
 	if(tmp == NULL) {
