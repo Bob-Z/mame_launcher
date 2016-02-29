@@ -147,18 +147,24 @@ void CharacterHandler(void *userData,const XML_Char *s,int len)
 
 ****************************************************************************/
 
-llist_t *LoadXML(const char * path,parse_data_t * data,char ** filter)
+llist_t *LoadXML(const char * path,char ** filter)
 {
         /* Get MESS data*/
         FILE *fpipe;
         char buffer[1024];
         enum XML_Status status;
+	parse_data_t data;
+
+	data.root_node = NULL;
+	data.decoding_string = 0;
+	data.xml_filter = NULL;
+	data.current = NULL;
 
         if(path==NULL) {
                 return NULL;
         }
 
-	data->xml_filter = filter;
+	data.xml_filter = filter;
 
         /* Execute binary */
         sprintf(buffer,"%s",path);
@@ -166,25 +172,25 @@ llist_t *LoadXML(const char * path,parse_data_t * data,char ** filter)
         if(fpipe==NULL) return NULL;
 
         /* XML parsing */
-        data->parser=XML_ParserCreate("UTF-8");
+        data.parser=XML_ParserCreate("UTF-8");
 
         /* Element parsing */
-        XML_SetStartElementHandler(data->parser,ElementStart);
-        XML_SetEndElementHandler(data->parser,ElementEnd);
+        XML_SetStartElementHandler(data.parser,ElementStart);
+        XML_SetEndElementHandler(data.parser,ElementEnd);
 
         /* character data parsing */
-        XML_SetCharacterDataHandler(data->parser,CharacterHandler);
+        XML_SetCharacterDataHandler(data.parser,CharacterHandler);
 
 	
-        XML_SetUserData(data->parser,data);
+        XML_SetUserData(data.parser,&data);
 
         status = XML_STATUS_OK;
         while ( fgets( buffer, sizeof buffer, fpipe) && status!=XML_STATUS_ERROR ) {
-                status=XML_Parse(data->parser,buffer,strlen(buffer),0);
+                status=XML_Parse(data.parser,buffer,strlen(buffer),0);
         }
         pclose(fpipe);
 
         if(status != XML_STATUS_OK) return NULL;
 
-        return data->root_node;
+        return data.root_node;
 }

@@ -29,7 +29,7 @@ typedef struct parse_data {
 	llist_t * current;
 } parse_data_t;
 
-llist_t *LoadXML(const char * path,parse_data_t * data, char ** filter);
+llist_t *LoadXML(const char * path, char ** filter);
 void ElementStart(void *userData,const XML_Char *name,const XML_Char **atts);
 void ElementEnd(void *userData,const XML_Char *name);
 void CharacterHandler(void *userData,const XML_Char *s,int len);

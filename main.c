@@ -655,16 +655,10 @@ void chd_mode()
 
 void * launch_load_listxml(void * arg)
 {
-	parse_data_t data;
 	char filename[1024];
 	char cmd[1024];
 	struct stat stat_info;
 	char * type_info = PARAM_LISTXML;
-
-	data.root_node = NULL;
-	data.decoding_string = 0;
-	data.xml_filter = NULL;
-	data.current = NULL;
 
 	sprintf(filename,"%s%s%s",tmp_dir,MAME_ROOT_NODE,type_info);
 	sprintf(cmd,"%s %s | tee %s ",binary,type_info,filename);
@@ -673,22 +667,16 @@ void * launch_load_listxml(void * arg)
 		sprintf(cmd,"/bin/cat %s",filename);
 	}
 	
-	listxml = LoadXML(cmd,&data,filter);
+	listxml = LoadXML(cmd,filter);
 	return NULL;
 }
 
 void * launch_load_getsoftlist(void * arg)
 {
-	parse_data_t data;
 	char filename[1024];
 	char cmd[1024];
 	struct stat stat_info;
 	char * type_info = PARAM_GETSOFTLIST;
-
-	data.root_node = NULL;
-	data.decoding_string = 0;
-	data.xml_filter = NULL;
-	data.current = NULL;
 
 	sprintf(filename,"%s%s%s",tmp_dir,MAME_ROOT_NODE,type_info);
 	sprintf(cmd,"%s %s | tee %s ",binary,type_info,filename);
@@ -697,7 +685,7 @@ void * launch_load_getsoftlist(void * arg)
 		sprintf(cmd,"/bin/cat %s",filename);
 	}
 	
-	softlist = LoadXML(cmd,&data,filter);
+	softlist = LoadXML(cmd,filter);
 	return NULL;
 }
 
