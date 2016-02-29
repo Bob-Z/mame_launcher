@@ -20,6 +20,9 @@
 #ifndef MISC
 #define MISC
 
+#define TRUE (1)
+#define FALSE (0)
+
 char * get_tmp_dir(void);
 
 #endif

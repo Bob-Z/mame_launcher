@@ -28,7 +28,7 @@
 
 #define CONFIG_DIR "/.config/mame_launcher"
 #define WHITE_LIST CONFIG_DIR "/whitelist"
-#define VERSION_FILE CONFIG_DIR "/version"
+#define VERSION_FILENAME CONFIG_DIR "/version"
 #define MAX_DRIVER (10000)
 #define OPTION_NO_SOUND " -nosound "
 #define AUTO_MODE_OPTION "-nowindow -ui_active "
@@ -59,6 +59,7 @@ char * working_dir=NULL;
 char * binary=NULL;
 char * roms_dir=NULL;
 char * whitelist_filename=NULL;
+char * version_filename=NULL;
 
 llist_t * listxml;
 llist_t * softlist;
@@ -113,7 +114,7 @@ const struct option longopts[] =
 
 static char *filter[]= { "dipswitch", "dipvalue", "chip", "display", "sound", "configuration", "confsetting", "adjuster", "device", "instance", "extension", "slot", "slotoption", "ramoption", "publisher", "info", "sharedfeat", "manufacturer", "biosset", "device_ref", "sample", NULL };
 
-int is_machine_ok(llist_t * machine)
+static int is_machine_ok(llist_t * machine)
 {
 	llist_t * desc;
 	llist_t * drv;
@@ -240,7 +241,7 @@ int is_machine_ok(llist_t * machine)
 	return true;
 }
 
-char * select_random_driver(char * list, char * compatibility)
+static char * select_random_driver(char * list, char * compatibility)
 {
 	llist_t * machine;
 	llist_t * soft_list;
@@ -307,7 +308,7 @@ char * select_random_driver(char * list, char * compatibility)
 }
 
 /* return 1 if system is launched in NON auto mode, 0 otherwise */
-int select_random_soft(int R)
+static int select_random_soft(int R)
 {
 	int count = 0;
 	llist_t * machine;
@@ -446,7 +447,7 @@ int select_random_soft(int R)
 	return 0;
 }
 
-void normal_mode()
+static void normal_mode()
 {
 	llist_t * machine;
 	llist_t * soft_list;
@@ -534,7 +535,7 @@ void normal_mode()
 	}
 }
 
-void read_chd_dir(char * dir)
+static void read_chd_dir(char * dir)
 {
         DIR * d;
         struct dirent * e;
@@ -568,7 +569,7 @@ void read_chd_dir(char * dir)
 	closedir(d);
 }
 
-void chd_mode()
+static void chd_mode()
 {
 	int R;
 	char * tmp;
@@ -654,7 +655,7 @@ void chd_mode()
 	}
 }
 
-void * launch_load_listxml(void * arg)
+static void * launch_load_listxml(void * arg)
 {
 	char filename[1024];
 	char cmd[1024];
@@ -672,7 +673,7 @@ void * launch_load_listxml(void * arg)
 	return NULL;
 }
 
-void * launch_load_getsoftlist(void * arg)
+static void * launch_load_getsoftlist(void * arg)
 {
 	char filename[1024];
 	char cmd[1024];
@@ -690,7 +691,7 @@ void * launch_load_getsoftlist(void * arg)
 	return NULL;
 }
 
-void whitelist_mode()
+static void whitelist_mode()
 {
 	FILE * whitelist = NULL;
 	char ** list = NULL;
@@ -745,12 +746,12 @@ void whitelist_mode()
 	}
 }
 
-void unset_terminal_mode(void)
+static void unset_terminal_mode(void)
 {
 	tcsetattr(fileno(stdin), TCSANOW, &orig_term_attr);
 }
 
-void init()
+static void init()
 {
 
 	char * tmp;
@@ -790,14 +791,19 @@ void init()
 	strncat(buf,WHITE_LIST,BUFFER_SIZE);
 	whitelist_filename=strdup(buf);
 
+	strncpy(buf,tmp,BUFFER_SIZE);
+	strncat(buf,VERSION_FILENAME,BUFFER_SIZE);
+	version_filename=strdup(buf);
+
 	printf("TMP_DIR:     %s\n",tmp_dir);
 	printf("WORKING_DIR: %s\n",working_dir);
 	printf("BINARY:      %s\n",binary);
 	printf("ROMS_DIR:    %s\n",roms_dir);
 	printf("WHITE_LIST:  %s\n",whitelist_filename);
+	printf("VERSION:     %s\n",version_filename);
 }
 
-static void get_version()
+static void get_version(char * version)
 {
 	FILE *fpipe;
 	char buffer[1024];
@@ -805,8 +811,35 @@ static void get_version()
 	sprintf(buffer,"%s -h",binary);
 	fpipe = (FILE*)popen(buffer,"r");
 
-	fgets( buffer, sizeof buffer, fpipe );
-	printf("MAME version string: %s\n",buffer);
+	fgets( version, sizeof buffer, fpipe );
+	printf("Current MAME version is: %s\n",version);
+}
+
+static int is_new_version()
+{
+	FILE * f_old_version;
+	char buf_old[1024];
+	char buf_new[1024];
+
+	f_old_version = fopen(version_filename,"r+");
+	if( f_old_version == NULL ) {
+		f_old_version = fopen(version_filename,"w+");
+		if( f_old_version == NULL ) {
+			printf("Error creating %s\n",version_filename);
+			exit(-1);
+		}
+	}
+	fgets( buf_old, sizeof buf_old, f_old_version );
+	printf("Previous MAME version is: %s\n",buf_old);
+
+	get_version(buf_new);
+
+	if( strncmp(buf_new,buf_old,sizeof buf_old) ){
+		printf("New version available\n");
+		return TRUE;
+	}
+
+	return FALSE;
 }
 
 int main(int argc, char**argv)
@@ -888,7 +921,8 @@ int main(int argc, char**argv)
 		whitelist_mode();
 	}
 
-	get_version();
+//	update = is_new_version();
+	is_new_version();
 
 	printf("Loading lists\n");
 	pthread_create(&thread_xml,NULL,launch_load_listxml,NULL);
