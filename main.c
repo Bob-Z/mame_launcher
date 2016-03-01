@@ -53,7 +53,6 @@
 #include <pthread.h>
 #include "misc.h"
 
-char * tmp_dir=NULL;
 char * working_dir=NULL;
 char * binary=NULL;
 char * roms_dir=NULL;
@@ -732,8 +731,6 @@ static void init()
 	char * tmp;
 	char buf[BUFFER_SIZE];
 
-	tmp_dir = get_tmp_dir();
-
 	working_dir = getenv("MAME_WORKING_DIR");
 	if(working_dir == NULL) {
 		printf("Please set MAME_WORKING_DIR environnement variable");
@@ -778,7 +775,6 @@ static void init()
 	strncat(buf,CACHE_GETSOFTLIST,BUFFER_SIZE);
 	cache_getsoftlist=strdup(buf);
 
-	printf("TMP_DIR:           %s\n",tmp_dir);
 	printf("WORKING_DIR:       %s\n",working_dir);
 	printf("BINARY:            %s\n",binary);
 	printf("ROMS_DIR:          %s\n",roms_dir);
