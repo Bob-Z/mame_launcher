@@ -29,6 +29,8 @@
 #define CONFIG_DIR "/.config/mame_launcher"
 #define WHITE_LIST CONFIG_DIR "/whitelist"
 #define VERSION_FILENAME CONFIG_DIR "/version"
+#define CACHE_LISTXML CONFIG_DIR "/listxml"
+#define CACHE_GETSOFTLIST CONFIG_DIR "/getsoftlist"
 #define OPTION_NO_SOUND " -nosound "
 #define AUTO_MODE_OPTION "-nowindow -ui_active "
 #define DURATION_OPTION "-str"
@@ -60,6 +62,8 @@ char * binary=NULL;
 char * roms_dir=NULL;
 char * whitelist_filename=NULL;
 char * version_filename=NULL;
+char * cache_listxml=NULL;
+char * cache_getsoftlist=NULL;
 
 llist_t * listxml;
 llist_t * softlist;
@@ -795,12 +799,22 @@ static void init()
 	strncat(buf,VERSION_FILENAME,BUFFER_SIZE);
 	version_filename=strdup(buf);
 
-	printf("TMP_DIR:     %s\n",tmp_dir);
-	printf("WORKING_DIR: %s\n",working_dir);
-	printf("BINARY:      %s\n",binary);
-	printf("ROMS_DIR:    %s\n",roms_dir);
-	printf("WHITE_LIST:  %s\n",whitelist_filename);
-	printf("VERSION:     %s\n",version_filename);
+	strncpy(buf,tmp,BUFFER_SIZE);
+	strncat(buf,CACHE_LISTXML,BUFFER_SIZE);
+	cache_listxml=strdup(buf);
+
+	strncpy(buf,tmp,BUFFER_SIZE);
+	strncat(buf,CACHE_GETSOFTLIST,BUFFER_SIZE);
+	cache_getsoftlist=strdup(buf);
+
+	printf("TMP_DIR:           %s\n",tmp_dir);
+	printf("WORKING_DIR:       %s\n",working_dir);
+	printf("BINARY:            %s\n",binary);
+	printf("ROMS_DIR:          %s\n",roms_dir);
+	printf("WHITE_LIST:        %s\n",whitelist_filename);
+	printf("VERSION:           %s\n",version_filename);
+	printf("CACHE_LISTXML:     %s\n",cache_listxml);
+	printf("CACHE_GETSOFTLIST: %s\n",cache_getsoftlist);
 }
 
 static void get_binary_version(char * version)
@@ -812,6 +826,8 @@ static void get_binary_version(char * version)
 	fpipe = (FILE*)popen(buffer,"r");
 
 	fgets( version, sizeof buffer, fpipe );
+
+	fclose(fpipe);
 }
 
 static void get_cache_version(char * version)
@@ -819,10 +835,20 @@ static void get_cache_version(char * version)
 	FILE *fversion;
 
 	version[0]=0;
-	fversion = fopen(version_filename,"r+");
+	fversion = fopen(version_filename,"r");
 	if( fversion != NULL ) {
 		fgets( version, BUFFER_SIZE, fversion );
+		fclose(fversion);
 	}
+}
+
+static void set_cache_version(char * version)
+{
+	FILE *fversion;
+
+	fversion = fopen(version_filename,"w");
+	fputs( version, fversion );
+	fclose(fversion);
 }
 
 static int is_new_version()
@@ -843,9 +869,44 @@ static int is_new_version()
 	return FALSE;
 }
 
+void update_cache()
+{
+	char cmd[BUFFER_SIZE];
+	FILE * fpipe;
+	FILE * foutput;
+	char * buffer;
+	size_t bytes;
+
+#define COPY_BUFFER_SIZE (1024*1024*100)
+	buffer = malloc(COPY_BUFFER_SIZE);
+
+	printf("Updating xml cache\n");
+	sprintf(cmd,"%s %s",binary,PARAM_LISTXML);
+	fpipe = (FILE*)popen(cmd,"r");
+	foutput = fopen(cache_listxml,"w");
+	while ((bytes = fread(buffer, 1, COPY_BUFFER_SIZE, fpipe)) > 0) {
+			fwrite(buffer, 1, bytes, foutput);
+	}
+	fclose(foutput);
+	fclose(fpipe);
+
+	printf("Updating soft list cache\n");
+	sprintf(cmd,"%s %s",binary,PARAM_GETSOFTLIST);
+	fpipe = (FILE*)popen(cmd,"r");
+	foutput = fopen(cache_getsoftlist,"w");
+	while ((bytes = fread(buffer, 1, COPY_BUFFER_SIZE, fpipe)) > 0) {
+			fwrite(buffer, 1, bytes, foutput);
+	}
+	fclose(foutput);
+	fclose(fpipe);
+
+	free(buffer);
+}
+
 int main(int argc, char**argv)
 {
 	int opt_ret;
+	char buffer[BUFFER_SIZE];
 
 	pthread_t thread_xml;
 	pthread_t thread_softlist;
@@ -922,8 +983,11 @@ int main(int argc, char**argv)
 		whitelist_mode();
 	}
 
-//	update = is_new_version();
-	is_new_version();
+	if( is_new_version() ) {
+		update_cache();
+		get_binary_version(buffer);
+		set_cache_version(buffer);
+	}
 
 	printf("Loading lists\n");
 	pthread_create(&thread_xml,NULL,launch_load_listxml,NULL);
