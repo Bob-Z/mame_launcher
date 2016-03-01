@@ -151,7 +151,7 @@ void CharacterHandler(void *userData,const XML_Char *s,int len)
 llist_t *LoadXML(const char * path,char ** filter)
 {
         /* Get MESS data*/
-        FILE *fpipe;
+        FILE *finput;
         char buffer[1024];
         enum XML_Status status;
 	parse_data_t data;
@@ -169,8 +169,8 @@ llist_t *LoadXML(const char * path,char ** filter)
 
         /* Execute binary */
         sprintf(buffer,"%s",path);
-        fpipe = (FILE*)popen(buffer,"r");
-        if(fpipe==NULL) return NULL;
+        finput = fopen(path,"r");
+        if(finput==NULL) return NULL;
 
         /* XML parsing */
         data.parser=XML_ParserCreate("UTF-8");
@@ -186,10 +186,10 @@ llist_t *LoadXML(const char * path,char ** filter)
         XML_SetUserData(data.parser,&data);
 
         status = XML_STATUS_OK;
-        while ( fgets( buffer, sizeof buffer, fpipe) && status!=XML_STATUS_ERROR ) {
+        while ( fgets( buffer, sizeof buffer, finput) && status!=XML_STATUS_ERROR ) {
                 status=XML_Parse(data.parser,buffer,strlen(buffer),0);
         }
-        pclose(fpipe);
+        fclose(finput);
 
         if(status != XML_STATUS_OK) return NULL;
 

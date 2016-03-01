@@ -661,37 +661,13 @@ static void chd_mode()
 
 static void * launch_load_listxml(void * arg)
 {
-	char filename[BUFFER_SIZE];
-	char cmd[BUFFER_SIZE];
-	struct stat stat_info;
-	char * type_info = PARAM_LISTXML;
-
-	sprintf(filename,"%s%s%s",tmp_dir,MAME_ROOT_NODE,type_info);
-	sprintf(cmd,"%s %s | tee %s ",binary,type_info,filename);
-
-	if(stat(filename,&stat_info)==0 && !update) {
-		sprintf(cmd,"/bin/cat %s",filename);
-	}
-	
-	listxml = LoadXML(cmd,filter);
+	listxml = LoadXML(cache_listxml,filter);
 	return NULL;
 }
 
 static void * launch_load_getsoftlist(void * arg)
 {
-	char filename[BUFFER_SIZE];
-	char cmd[BUFFER_SIZE];
-	struct stat stat_info;
-	char * type_info = PARAM_GETSOFTLIST;
-
-	sprintf(filename,"%s%s%s",tmp_dir,MAME_ROOT_NODE,type_info);
-	sprintf(cmd,"%s %s | tee %s ",binary,type_info,filename);
-
-	if(stat(filename,&stat_info)==0 && !update ) {
-		sprintf(cmd,"/bin/cat %s",filename);
-	}
-	
-	softlist = LoadXML(cmd,filter);
+	softlist = LoadXML(cache_getsoftlist,filter);
 	return NULL;
 }
 
@@ -827,7 +803,7 @@ static void get_binary_version(char * version)
 
 	fgets( version, sizeof buffer, fpipe );
 
-	fclose(fpipe);
+	pclose(fpipe);
 }
 
 static void get_cache_version(char * version)
@@ -888,7 +864,7 @@ void update_cache()
 			fwrite(buffer, 1, bytes, foutput);
 	}
 	fclose(foutput);
-	fclose(fpipe);
+	pclose(fpipe);
 
 	printf("Updating soft list cache\n");
 	sprintf(cmd,"%s %s",binary,PARAM_GETSOFTLIST);
@@ -898,7 +874,7 @@ void update_cache()
 			fwrite(buffer, 1, bytes, foutput);
 	}
 	fclose(foutput);
-	fclose(fpipe);
+	pclose(fpipe);
 
 	free(buffer);
 }
