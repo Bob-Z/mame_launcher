@@ -38,9 +38,6 @@
 #define BUFFER_SIZE (10000)
 #define MAX_DRIVER (100000)
 
-#define false (0)
-#define true (1)
-
 #include <stdio.h>
 #include <string.h>
 #include <dirent.h>
@@ -88,24 +85,22 @@ char * driver_black_list[] = { "kccomp", "al520ex", "cpc6128s", "cpc6128f", NULL
 /* Description string to black list (namely for fruit machine) */
 char * desc_black_list[] = { "(MPU4)", "(Scorpion 4)", "Player's Edge Plus", NULL };
 
-int automode = 0;
-int chdmode = 0;
-int preliminarymode = 0;
-int minyear = 0;
-int update = 0;
-int whitelistmode = 0;
-int coinonly = 0;
-int gambling = 0;
+int automode = FALSE;
+int chdmode = FALSE;
+int preliminarymode = FALSE;
+int minyear = FALSE;
+int whitelistmode = FALSE;
+int coinonly = FALSE;
+int gambling = FALSE;
 
 struct termios orig_term_attr;
 struct termios new_term_attr;
 
-const char optstring[] = "?acpwul:y:nd:og";
+const char optstring[] = "?acpwl:y:nd:og";
 const struct option longopts[] =
         {{ "auto",no_argument,NULL,'a' },
         { "chd",no_argument,NULL,'c' },
         { "preliminary",no_argument,NULL,'p' },
-        { "update",no_argument,NULL,'u' },
         { "whitelist",no_argument,NULL,'w' },
         { "list",required_argument,NULL,'l' },
         { "year",required_argument,NULL,'y' },
@@ -143,7 +138,7 @@ static int is_machine_ok(llist_t * machine)
 	while( driver_black_list[i] != NULL ) {
 		if(!strcmp(name,driver_black_list[i])){
 			printf(" - driver %s(%s) is black-listed, skipping\n",desc->data,name);
-			return false;
+			return FALSE;
 		}
 		i++;
 	}
@@ -155,7 +150,7 @@ static int is_machine_ok(llist_t * machine)
 
 		if( coins==NULL || coins[0]==0 ) {
 			printf(" - driver %s(%s) : is not coin operated, skipping\n",desc->data,name);
-			return false;
+			return FALSE;
 		}
 	}
 
@@ -166,7 +161,7 @@ static int is_machine_ok(llist_t * machine)
 			type = find_attr(control,"type");
 			if(!strcmp(type,"gambling")){
 				printf(" - driver %s(%s) is gambling, skipping\n",desc->data,name);
-				return false;
+				return FALSE;
 			}
 			control = find_next_node(control);
 		}
@@ -178,12 +173,12 @@ static int is_machine_ok(llist_t * machine)
 		year = y->data;
 		if(year==NULL || year[0]==0){
 			printf(" - driver %s(%s) : has no year, skipping\n",desc->data,name);
-			return false;
+			return FALSE;
 		}
 
 		if( atoi(year) < minyear ) {
 			printf(" - driver %s(%s) : is too old (%s), skipping\n",desc->data,name,year);
-			return false;
+			return FALSE;
 		}
 		printf(" - %s(%s) year is %s\n",desc->data,name,year);
 	}
@@ -194,7 +189,7 @@ static int is_machine_ok(llist_t * machine)
 	if(!strcmp(driver_status,"preliminary")) {
 		if(!preliminarymode) {
 			printf(" - driver %s(%s) is preliminary, skipping\n",desc->data,name);
-			return false;
+			return FALSE;
 		}
 		printf(" - driver %s(%s) is preliminary\n",desc->data,name);
 	}
@@ -205,7 +200,7 @@ static int is_machine_ok(llist_t * machine)
 		while(auto_black_list[i]!=NULL) {
 			if(!strcmp(auto_black_list[i],name)) {
 				printf("%s black listed for auto-mode\n",name);
-				return false;
+				return FALSE;
 			}
 			i++;
 		}
@@ -215,21 +210,21 @@ static int is_machine_ok(llist_t * machine)
 	ismechanical = find_attr(machine,"ismechanical");
 	if(!strcmp(ismechanical,"yes")) {
 		printf(" - %s(%s) is mechanical, skipping\n",desc->data,name);
-		return false;
+		return FALSE;
 	}
 
 	// device
 	isdevice = find_attr(machine,"isdevice");
 	if(!strcmp(isdevice,"yes")) {
 		printf(" - %s(%s) is a device, skipping\n",desc->data,name);
-		return false;
+		return FALSE;
 	}
 
 	// runnable
 	runnable = find_attr(machine,"runnable");
 	if(!strcmp(runnable,"no")) {
 		printf(" - %s(%s) is not runnable, skipping\n",desc->data,name);
-		return false;
+		return FALSE;
 	}
 
 	// Description black list
@@ -237,12 +232,12 @@ static int is_machine_ok(llist_t * machine)
 	while( desc_black_list[i] != NULL ) {
 		if(strstr(desc->data,desc_black_list[i])){
 			printf(" - driver %s(%s) is black-listed by its description, skipping\n",desc->data,name);
-			return false;
+			return FALSE;
 		}
 		i++;
 	}
 
-	return true;
+	return TRUE;
 }
 
 static char * select_random_driver(char * list, char * compatibility)
@@ -897,25 +892,22 @@ int main(int argc, char**argv)
 	while((opt_ret = getopt_long(argc, argv, optstring, longopts, NULL))!=-1) {
 		switch(opt_ret) {
 			case 'a':
-				automode = true;
+				automode = TRUE;
 				break;
 			case 'c':
-				chdmode = true;
+				chdmode = TRUE;
 				break;
 			case 'p':
-				preliminarymode = true;
-				break;
-			case 'u':
-				update = true;
+				preliminarymode = TRUE;
 				break;
 			case 'w':
-				whitelistmode = true;
+				whitelistmode = TRUE;
 				break;
 			case 'o':
-				coinonly = true;
+				coinonly = TRUE;
 				break;
 			case 'g':
-				gambling = true;
+				gambling = TRUE;
 				break;
 			case 'l':
 				forced_list = optarg;
@@ -939,7 +931,6 @@ int main(int argc, char**argv)
 				printf("-n : no sound\n");
 				printf("-o : coin operated nachine only\n");
 				printf("-p : allow preliminary drivers\n");
-				printf("-u : update cache from binaries\n");
 				printf("-w : use white list\n");
 				printf("-y <4 digit year> : only choose drivers later than <year>\n");
 				exit(0);
