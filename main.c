@@ -29,12 +29,12 @@
 #define CONFIG_DIR "/.config/mame_launcher"
 #define WHITE_LIST CONFIG_DIR "/whitelist"
 #define VERSION_FILENAME CONFIG_DIR "/version"
-#define MAX_DRIVER (10000)
 #define OPTION_NO_SOUND " -nosound "
 #define AUTO_MODE_OPTION "-nowindow -ui_active "
 #define DURATION_OPTION "-str"
 
 #define BUFFER_SIZE (10000)
+#define MAX_DRIVER (100000)
 
 #define false (0)
 #define true (1)
@@ -657,8 +657,8 @@ static void chd_mode()
 
 static void * launch_load_listxml(void * arg)
 {
-	char filename[1024];
-	char cmd[1024];
+	char filename[BUFFER_SIZE];
+	char cmd[BUFFER_SIZE];
 	struct stat stat_info;
 	char * type_info = PARAM_LISTXML;
 
@@ -675,8 +675,8 @@ static void * launch_load_listxml(void * arg)
 
 static void * launch_load_getsoftlist(void * arg)
 {
-	char filename[1024];
-	char cmd[1024];
+	char filename[BUFFER_SIZE];
+	char cmd[BUFFER_SIZE];
 	struct stat stat_info;
 	char * type_info = PARAM_GETSOFTLIST;
 
@@ -697,10 +697,10 @@ static void whitelist_mode()
 	char ** list = NULL;
 	size_t len;
 	int count = 0;
-	char buf[1024];
+	char buf[BUFFER_SIZE];
 	char * entry = NULL;
 	int R;
-	char driver[1024];
+	char driver[BUFFER_SIZE];
 	int i;
 
 	/* Load list */
@@ -803,36 +803,37 @@ static void init()
 	printf("VERSION:     %s\n",version_filename);
 }
 
-static void get_version(char * version)
+static void get_binary_version(char * version)
 {
 	FILE *fpipe;
-	char buffer[1024];
+	char buffer[BUFFER_SIZE];
 
 	sprintf(buffer,"%s -h",binary);
 	fpipe = (FILE*)popen(buffer,"r");
 
 	fgets( version, sizeof buffer, fpipe );
-	printf("Current MAME version is: %s\n",version);
+}
+
+static void get_cache_version(char * version)
+{
+	FILE *fversion;
+
+	version[0]=0;
+	fversion = fopen(version_filename,"r+");
+	if( fversion != NULL ) {
+		fgets( version, BUFFER_SIZE, fversion );
+	}
 }
 
 static int is_new_version()
 {
-	FILE * f_old_version;
-	char buf_old[1024];
-	char buf_new[1024];
+	char buf_old[BUFFER_SIZE];
+	char buf_new[BUFFER_SIZE];
 
-	f_old_version = fopen(version_filename,"r+");
-	if( f_old_version == NULL ) {
-		f_old_version = fopen(version_filename,"w+");
-		if( f_old_version == NULL ) {
-			printf("Error creating %s\n",version_filename);
-			exit(-1);
-		}
-	}
-	fgets( buf_old, sizeof buf_old, f_old_version );
+	get_cache_version(buf_old);
 	printf("Previous MAME version is: %s\n",buf_old);
-
-	get_version(buf_new);
+	get_binary_version(buf_new);
+	printf("Current MAME version is: %s\n",buf_new);
 
 	if( strncmp(buf_new,buf_old,sizeof buf_old) ){
 		printf("New version available\n");
