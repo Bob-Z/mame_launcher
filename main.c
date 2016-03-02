@@ -910,7 +910,9 @@ int main(int argc, char**argv)
 				duration = atoi(optarg);
 				break;
 			default:
-				printf("HELP:\n\n");
+				printf("Usage:\n\n");
+				printf("%s [OPTION] <Mame binary full path name>\n\n",argv[0]);
+				printf("OPTION:\n");
 				printf("-a : automatic mode\n");
 				printf("-c : only CHD\n");
 				printf("-d <seconds> : auto mode run duration\n");
