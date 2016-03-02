@@ -36,7 +36,6 @@
 #define DURATION_OPTION "-str"
 
 #define BUFFER_SIZE (10000)
-#define MAX_DRIVER (100000)
 
 #include <stdio.h>
 #include <string.h>
@@ -239,6 +238,7 @@ static int is_machine_ok(llist_t * machine)
 	return TRUE;
 }
 
+/* return a driver name which NEED TO BE FREED */
 static char * select_random_driver(char * list, char * compatibility)
 {
 	llist_t * machine;
@@ -247,11 +247,12 @@ static char * select_random_driver(char * list, char * compatibility)
 	char * name;
 	char * soft_name;
 	char * compat;
-	char * driver[MAX_DRIVER];
-	char * desc[MAX_DRIVER];
+	char ** driver = NULL;
+	char ** desc = NULL;
 	int driver_count = 0;
 	int R;
 	int i;
+	char * selected_driver = NULL;
 
 	machine = find_first_node(listxml,ENTRY_TYPE);
 	do {
@@ -280,9 +281,11 @@ static char * select_random_driver(char * list, char * compatibility)
 					}
 				}
 
-				driver[driver_count] = name;
-				desc[driver_count] = des->data;
 				driver_count++;
+				driver = realloc(driver,sizeof(char*) * driver_count);
+				desc = realloc(desc,sizeof(char*) * driver_count);
+				driver[driver_count-1] = name;
+				desc[driver_count-1] = des->data;
 			}
 		} while ( (soft_list=find_next_node(soft_list)) != NULL );
 
@@ -302,7 +305,10 @@ static char * select_random_driver(char * list, char * compatibility)
 
 	R =rand()%driver_count;
 	printf("\n%s\n",desc[R]);
-	return driver[R];
+	selected_driver = strdup(driver[R]);
+	free(driver);
+	free(desc);
+	return selected_driver;
 }
 
 /* return 1 if system is launched in NON auto mode, 0 otherwise */
@@ -415,6 +421,7 @@ static int select_random_soft(int R)
 					}
 					printf("%s\n",desc_soft->data);
 					sprintf(command_line,"%s %s",selected_driver,soft_name);
+					free(selected_driver);
 					if(!automode) {
 						sprintf(buf,"%s %s %s",binary,option,command_line);
 						printf("Space to skip...\n");
