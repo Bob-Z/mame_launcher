@@ -731,22 +731,6 @@ static void init()
 	char * tmp;
 	char buf[BUFFER_SIZE];
 
-	working_dir = getenv("MAME_WORKING_DIR");
-	if(working_dir == NULL) {
-		printf("Please set MAME_WORKING_DIR environnement variable");
-		exit(-1);
-	}
-
-	tmp = getenv("MAME_BINARY");
-	if(tmp == NULL) {
-		printf("Please set MAME_BINARY environnement variable");
-		exit(-1);
-	}
-	strncpy(buf,working_dir,BUFFER_SIZE);
-	strncat(buf,"/",BUFFER_SIZE);
-	strncat(buf,tmp,BUFFER_SIZE);
-	binary = strdup(buf);
-
 	roms_dir = getenv("MAME_ROMS_DIR");
 	if(roms_dir == NULL) {
 		printf("Please set MAME_ROMS_DIR environnement variable");
@@ -874,6 +858,7 @@ int main(int argc, char**argv)
 {
 	int opt_ret;
 	char buffer[BUFFER_SIZE];
+	int index;
 
 	pthread_t thread_xml;
 	pthread_t thread_softlist;
@@ -931,6 +916,31 @@ int main(int argc, char**argv)
 				printf("-y <4 digit year> : only choose drivers later than <year>\n");
 				exit(0);
 		}
+	}
+
+	for (index = optind; index < argc; index++) {
+		binary = argv[index];
+		break;
+	}
+
+	if( binary == NULL ) {
+		printf("No binary full path name provided\n");
+		exit(-1);
+	}
+
+	working_dir = strdup(binary);
+	index = strlen(binary);
+	while( index > 0 ) {
+		if( working_dir[index] == '/' ) {
+			working_dir[index] = 0;
+			break;
+		}
+		index--;
+	}
+
+	if( index==0 ) {
+		printf("Cannot find a path name in %s\n",binary);
+		exit(-1);
 	}
 
 	sprintf(auto_mode_option," %s %s %d ",AUTO_MODE_OPTION,DURATION_OPTION,duration);
