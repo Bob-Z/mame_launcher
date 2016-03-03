@@ -109,6 +109,10 @@ llist_t * add_child(llist_t * list, llist_t * child)
 
 inline llist_t * get_child(llist_t * list)
 {
+	if( list == NULL ) {
+		return NULL;
+	}
+
 	return list->child;
 }
 
