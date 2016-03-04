@@ -121,6 +121,7 @@ static int is_machine_ok(llist_t * machine)
 	char * type;
 	char * driver_status;
 	int i;
+	int is_OK = TRUE;
 
 	name =find_attr(machine,"name");
 	desc = find_first_node(machine,"description");
@@ -129,8 +130,9 @@ static int is_machine_ok(llist_t * machine)
 	i = 0;
 	while( driver_black_list[i] != NULL ) {
 		if(!strcmp(name,driver_black_list[i])){
-			printf(" - driver %s(%s) is black-listed, skipping\n",desc->data,name);
-			return FALSE;
+			printf("    black-listed, skipping\n");
+			is_OK = FALSE;
+			break;
 		}
 		i++;
 	}
@@ -141,8 +143,11 @@ static int is_machine_ok(llist_t * machine)
 		coins = find_attr(input,"coins");
 
 		if( coins==NULL || coins[0]==0 ) {
-			printf(" - driver %s(%s) : is not coin operated, skipping\n",desc->data,name);
-			return FALSE;
+			printf("    not coin operated, skipping\n");
+			is_OK = FALSE;
+		}
+		else {
+			printf("    coin operated\n");
 		}
 	}
 
@@ -152,8 +157,9 @@ static int is_machine_ok(llist_t * machine)
 		while( control ) {
 			type = find_attr(control,"type");
 			if(!strcmp(type,"gambling")){
-				printf(" - driver %s(%s) is gambling, skipping\n",desc->data,name);
-				return FALSE;
+				printf("    gambling control, skipping\n");
+				is_OK = FALSE;
+				break;
 			}
 			control = find_next_node(control);
 		}
@@ -162,17 +168,26 @@ static int is_machine_ok(llist_t * machine)
 	//minimal year
 	if(minyear > 0) {
 		y = find_first_node(machine,"year");
-		year = y->data;
-		if(year==NULL || year[0]==0){
-			printf(" - driver %s(%s) : has no year, skipping\n",desc->data,name);
-			return FALSE;
+		if(y==NULL){
+			printf("    has no year information, skipping\n");
+			is_OK = FALSE;
 		}
-
-		if( atoi(year) < minyear ) {
-			printf(" - driver %s(%s) : is too old (%s), skipping\n",desc->data,name,year);
-			return FALSE;
+		else {
+			year = y->data;
+			if(year==NULL || year[0]==0){
+				printf("    has no year information, skipping\n");
+				is_OK = FALSE;
+			}
+			else {
+				if( atoi(year) < minyear ) {
+					printf("    too old (%s), skipping\n",year);
+					is_OK = FALSE;
+				}
+				else {
+					printf("    year is %s\n",year);
+				}
+			}
 		}
-		printf(" - %s(%s) year is %s\n",desc->data,name,year);
 	}
 
 	// driver status
@@ -180,10 +195,12 @@ static int is_machine_ok(llist_t * machine)
 	driver_status = find_attr(drv,"status");
 	if(driver_status && !strcmp(driver_status,"preliminary")) {
 		if(!preliminarymode) {
-			printf(" - driver %s(%s) is preliminary, skipping\n",desc->data,name);
-			return FALSE;
+			printf("    preliminary driver, skipping\n");
+			is_OK = FALSE;
 		}
-		printf(" - driver %s(%s) is preliminary\n",desc->data,name);
+		else {
+			printf("    preliminary driver\n");
+		}
 	}
 
 	// auto mode
@@ -191,8 +208,9 @@ static int is_machine_ok(llist_t * machine)
 		i = 0;
 		while(auto_black_list[i]!=NULL) {
 			if(!strcmp(auto_black_list[i],name)) {
-				printf("%s black listed for auto-mode\n",name);
-				return FALSE;
+				printf("    black listed for auto-mode, skipping\n");
+				is_OK = FALSE;
+				break;
 			}
 			i++;
 		}
@@ -201,30 +219,31 @@ static int is_machine_ok(llist_t * machine)
 	// mechanical
 	ismechanical = find_attr(machine,"ismechanical");
 	if(!strcmp(ismechanical,"yes")) {
-		printf(" - %s(%s) is mechanical, skipping\n",desc->data,name);
-		return FALSE;
+		printf("    mechanical, skipping\n");
+		is_OK = FALSE;
 	}
 
 	// device
 	isdevice = find_attr(machine,"isdevice");
 	if(!strcmp(isdevice,"yes")) {
-		printf(" - %s(%s) is a device, skipping\n",desc->data,name);
-		return FALSE;
+		printf("    device, skipping\n");
+		is_OK = FALSE;
 	}
 
 	// runnable
 	runnable = find_attr(machine,"runnable");
 	if(!strcmp(runnable,"no")) {
-		printf(" - %s(%s) is not runnable, skipping\n",desc->data,name);
-		return FALSE;
+		printf("    not runnable, skipping\n");
+		is_OK = FALSE;
 	}
 
 	// Description black list
 	i = 0;
 	while( desc_black_list[i] != NULL ) {
 		if(strstr(desc->data,desc_black_list[i])){
-			printf(" - driver %s(%s) is black-listed by its description, skipping\n",desc->data,name);
-			return FALSE;
+			printf("    black-listed by its description, skipping\n");
+			is_OK = FALSE;
+			break;
 		}
 		i++;
 	}
@@ -233,15 +252,15 @@ static int is_machine_ok(llist_t * machine)
 	if( chdmode && !has_disk ) {
 		disk = find_first_node(machine,"disk");
 		if( disk == NULL ){
-			printf(" - driver %s(%s) uses no disk, skipping\n",desc->data,name);
-			return FALSE;
+			printf("    not using disks, skipping\n");
+			is_OK = FALSE;
 		}
 	}
 	if( chdmode ) {
-		printf(" - driver %s(%s) uses disks\n",desc->data,name);
+		printf("using disks\n");
 	}
 
-	return TRUE;
+	return is_OK;
 }
 
 /* return a driver name which NEED TO BE FREED */
@@ -271,6 +290,7 @@ static char * select_random_driver(char * list, char * compatibility)
 			if(!strcmp(soft_name,list)) {
 				name =find_attr(machine,"name");
 				des = find_first_node(machine,"description");
+				printf(" - %s(%s)\n",des->data,name);
 
 				if( ! is_machine_ok(machine) ) {
 					continue;
@@ -344,14 +364,14 @@ static int select_random_soft(int R)
 	machine = find_first_node(listxml,ENTRY_TYPE);
 	do {
 		if(count == R) {
+			name = find_attr(machine,"name");
+			desc = find_first_node(machine,"description");
+			printf(" - %s(%s)\n",desc->data,name);
+
 			if( ! is_machine_ok(machine) ) {
 				return 0;
 			}
 
-			name = find_attr(machine,"name");
-			desc = find_first_node(machine,"description");
-
-			printf("%s\n",desc->data);
 			sprintf(command_line,"%s",name);
 			if(!automode) {
 				sprintf(buf,"%s %s %s",binary,option,command_line);
