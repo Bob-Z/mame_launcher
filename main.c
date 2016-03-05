@@ -681,7 +681,7 @@ static char ** read_conf_file(const char * conf_filename)
 	return conf;
 }
 
-static void init()
+static char* build_full_filename(const char * filename)
 {
 	char * tmp;
 	char buf[BUFFER_SIZE];
@@ -693,39 +693,30 @@ static void init()
 	}
 
 	strncpy(buf,tmp,BUFFER_SIZE);
-	strncat(buf,WHITE_LIST,BUFFER_SIZE);
-	whitelist_filename=strdup(buf);
+	strncat(buf,filename,BUFFER_SIZE);
+	return strdup(buf);
+}
 
-	strncpy(buf,tmp,BUFFER_SIZE);
-	strncat(buf,VERSION_FILENAME,BUFFER_SIZE);
-	version_filename=strdup(buf);
+static void init()
+{
+	whitelist_filename=build_full_filename(WHITE_LIST);
 
-	strncpy(buf,tmp,BUFFER_SIZE);
-	strncat(buf,CACHE_LISTXML,BUFFER_SIZE);
-	cache_listxml=strdup(buf);
+	version_filename=build_full_filename(VERSION_FILENAME);
 
-	strncpy(buf,tmp,BUFFER_SIZE);
-	strncat(buf,CACHE_GETSOFTLIST,BUFFER_SIZE);
-	cache_getsoftlist=strdup(buf);
+	cache_listxml=build_full_filename(CACHE_LISTXML);
 
-	strncpy(buf,tmp,BUFFER_SIZE);
-	strncat(buf,AUTO_BLACK_LIST,BUFFER_SIZE);
-	auto_black_list_filename=strdup(buf);
+	cache_getsoftlist=build_full_filename(CACHE_GETSOFTLIST);
+
+	auto_black_list_filename=build_full_filename(AUTO_BLACK_LIST);
 	auto_black_list= read_conf_file(auto_black_list_filename);
 
-	strncpy(buf,tmp,BUFFER_SIZE);
-	strncat(buf,AUTO_BLACK_SOFTLIST,BUFFER_SIZE);
-	auto_black_softlist_filename=strdup(buf);
+	auto_black_softlist_filename=build_full_filename(AUTO_BLACK_SOFTLIST);
 	auto_black_softlist=read_conf_file(auto_black_softlist_filename);
 
-	strncpy(buf,tmp,BUFFER_SIZE);
-	strncat(buf,DRIVER_BLACK_LIST,BUFFER_SIZE);
-	driver_black_list_filename=strdup(buf);
+	driver_black_list_filename=build_full_filename(DRIVER_BLACK_LIST);
 	driver_black_list=read_conf_file(driver_black_list_filename);
 
-	strncpy(buf,tmp,BUFFER_SIZE);
-	strncat(buf,DESC_BLACK_LIST,BUFFER_SIZE);
-	desc_black_list_filename=strdup(buf);
+	desc_black_list_filename=build_full_filename(DESC_BLACK_LIST);
 	desc_black_list=read_conf_file(desc_black_list_filename);
 
 	printf("WORKING_DIR:         %s\n",working_dir);
