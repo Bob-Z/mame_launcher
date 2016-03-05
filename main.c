@@ -29,6 +29,10 @@
 #define VERSION_FILENAME CONFIG_DIR "/version"
 #define CACHE_LISTXML CONFIG_DIR "/listxml"
 #define CACHE_GETSOFTLIST CONFIG_DIR "/getsoftlist"
+#define AUTO_BLACK_LIST CONFIG_DIR "/auto_black_list"
+#define AUTO_BLACK_SOFTLIST CONFIG_DIR "/auto_black_softlist"
+#define DRIVER_BLACK_LIST CONFIG_DIR "/driver_black_list"
+#define DESC_BLACK_LIST CONFIG_DIR "/desc_black_list"
 #define OPTION_NO_SOUND " -nosound "
 #define AUTO_MODE_OPTION "-nowindow -ui_active "
 #define DURATION_OPTION "-str"
@@ -56,6 +60,10 @@ char * whitelist_filename=NULL;
 char * version_filename=NULL;
 char * cache_listxml=NULL;
 char * cache_getsoftlist=NULL;
+char * auto_black_list_filename=NULL;
+char * auto_black_softlist_filename=NULL;
+char * driver_black_list_filename=NULL;
+char * desc_black_list_filename=NULL;
 
 llist_t * listxml;
 llist_t * softlists;
@@ -67,13 +75,13 @@ char command_line[BUFFER_SIZE];
 
 int whitelist; /* whitelist file descriptor */
 /* Names of drivers to skip when running in auto mode */
-char * auto_black_list[] = { "cdimono1", "cpc464", "cpc664", "cpc6128", "al520ex", "kccomp", "cpc6128f", "cpc6128s", "bbcb_de", "z1013", NULL } ;
+char ** auto_black_list = NULL;
 /* Names of softlists to skip when running in auto mode */
-char * auto_black_softlist[] = { "tvc_flop", "ti99_cart", "bbca_cass", "bbcb_cass", "msx1_cass", "lviv", "kc_cass", "spc1000_cass", "sol20_cass", "mtx_cass", "dai_cass", "ep64_flop", "pet_cass", "orion_cass", "mz700_cass", "special_cass", "cbm2_flop", "cgenie_cass", "jupace_cass", "bbcm_flop", "fm7_cass", "mc10", "x07_cass", NULL } ;
+char ** auto_black_softlist = NULL;
 /* Names of drivers to skip when selecting a driver */
-char * driver_black_list[] = { "kccomp", "al520ex", "cpc6128s", "cpc6128f", NULL };
+char ** driver_black_list = NULL;
 /* Description string to black list (namely for fruit machine) */
-char * desc_black_list[] = { "(MPU4)", "(Scorpion 4)", "Player's Edge Plus", NULL };
+char ** desc_black_list = NULL;
 
 int automode = FALSE;
 int chdmode = FALSE;
@@ -648,6 +656,31 @@ static void unset_terminal_mode(void)
 	tcsetattr(fileno(stdin), TCSANOW, &orig_term_attr);
 }
 
+static char ** read_conf_file(const char * conf_filename)
+{
+	FILE * fp;
+	int num;
+	char buf[BUFFER_SIZE];
+	char ** conf = NULL;
+
+	fp = fopen(conf_filename,"r");
+	if( fp ){
+		num = 0;
+		while( fgets(buf, sizeof(buf), fp) ){
+			if(buf[strlen(buf)-1]=='\n'){
+				buf[strlen(buf)-1]=0;
+			}
+			num++;
+			conf = realloc(conf,sizeof(char*)*(num+1));
+			conf[num-1] = strdup(buf);
+			conf[num] = NULL;
+		}
+		fclose( fp );
+	}
+
+	return conf;
+}
+
 static void init()
 {
 	char * tmp;
@@ -675,13 +708,45 @@ static void init()
 	strncat(buf,CACHE_GETSOFTLIST,BUFFER_SIZE);
 	cache_getsoftlist=strdup(buf);
 
-	printf("WORKING_DIR:       %s\n",working_dir);
-	printf("BINARY:            %s\n",binary);
-	printf("WHITE_LIST:        %s\n",whitelist_filename);
-	printf("VERSION:           %s\n",version_filename);
-	printf("CACHE_LISTXML:     %s\n",cache_listxml);
-	printf("CACHE_GETSOFTLIST: %s\n",cache_getsoftlist);
-	printf("\n");
+	strncpy(buf,tmp,BUFFER_SIZE);
+	strncat(buf,AUTO_BLACK_LIST,BUFFER_SIZE);
+	auto_black_list_filename=strdup(buf);
+	auto_black_list= read_conf_file(auto_black_list_filename);
+
+	strncpy(buf,tmp,BUFFER_SIZE);
+	strncat(buf,AUTO_BLACK_SOFTLIST,BUFFER_SIZE);
+	auto_black_softlist_filename=strdup(buf);
+	auto_black_softlist=read_conf_file(auto_black_softlist_filename);
+
+	strncpy(buf,tmp,BUFFER_SIZE);
+	strncat(buf,DRIVER_BLACK_LIST,BUFFER_SIZE);
+	driver_black_list_filename=strdup(buf);
+	driver_black_list=read_conf_file(driver_black_list_filename);
+
+	strncpy(buf,tmp,BUFFER_SIZE);
+	strncat(buf,DESC_BLACK_LIST,BUFFER_SIZE);
+	desc_black_list_filename=strdup(buf);
+	desc_black_list=read_conf_file(desc_black_list_filename);
+
+	printf("WORKING_DIR:         %s\n",working_dir);
+	printf("BINARY:              %s\n",binary);
+	printf("WHITE_LIST:          %s\n",whitelist_filename);
+	printf("VERSION:             %s\n",version_filename);
+	printf("CACHE_LISTXML:       %s\n",cache_listxml);
+	printf("CACHE_GETSOFTLIST:   %s\n",cache_getsoftlist);
+	if(auto_black_list) {
+		printf("AUTO_BLACK_LIST:     %s\n",auto_black_list_filename);
+	}
+	if(auto_black_softlist) {
+		printf("AUTO_BLACK_SOFTLIST: %s\n",auto_black_softlist_filename);
+	}
+	if(driver_black_list) {
+		printf("DRIVER_BLACK_LIST:   %s\n",driver_black_list_filename);
+	}
+	if(desc_black_list) {
+		printf("DESC_BLACK_LIST:     %s\n",desc_black_list_filename);
+	}
+	printf("\n\n");
 }
 
 static void get_binary_version(char * version)
