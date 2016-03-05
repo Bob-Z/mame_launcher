@@ -791,7 +791,7 @@ static int is_new_version()
 	get_cache_version(buf_old);
 	printf("Previous MAME version is: %s\n",buf_old);
 	get_binary_version(buf_new);
-	printf("Current MAME version is: %s\n",buf_new);
+	printf("Current MAME version is:  %s\n",buf_new);
 
 	if( strncmp(buf_new,buf_old,sizeof buf_old) ){
 		printf("New version available\n");
