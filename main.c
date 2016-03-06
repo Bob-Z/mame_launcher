@@ -664,6 +664,9 @@ static char ** read_conf_file(const char * conf_filename)
 	char buf[BUFFER_SIZE];
 	char ** conf = NULL;
 
+	conf = malloc(sizeof(char*));
+	conf[0] = NULL;
+
 	fp = fopen(conf_filename,"r");
 	if( fp ){
 		num = 0;
