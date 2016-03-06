@@ -24,7 +24,8 @@
 #define ENTRY_TYPE "machine"
 #define SOFTWARELIST "softwarelist"
 
-#define CONFIG_DIR "/.config/mame_launcher"
+#define CONFIG_BASE_DIR "/.config"
+#define CONFIG_DIR CONFIG_BASE_DIR "/mame_launcher"
 #define WHITE_LIST CONFIG_DIR "/whitelist"
 #define VERSION_FILENAME CONFIG_DIR "/version"
 #define CACHE_LISTXML CONFIG_DIR "/listxml"
@@ -699,6 +700,9 @@ static char* build_full_filename(const char * filename)
 
 static void init()
 {
+	mkdir(CONFIG_BASE_DIR,0777);
+	mkdir(CONFIG_DIR,0777);
+
 	whitelist_filename=build_full_filename(WHITE_LIST);
 
 	version_filename=build_full_filename(VERSION_FILENAME);
@@ -953,7 +957,6 @@ int main(int argc, char**argv)
 	}
 
 	if(!automode) {
-		mkdir(CONFIG_DIR,0777);
 		whitelist = open(whitelist_filename,O_RDWR|O_CREAT,S_IRWXU|S_IRWXG|S_IROTH);
 		if(whitelist == -1) {
 			printf("Error openning whitelist\n");
