@@ -88,6 +88,7 @@ int automode = FALSE;
 int chdmode = FALSE;
 int preliminarymode = FALSE;
 char* minyear = NULL;
+char* min_players = NULL;
 int whitelistmode = FALSE;
 int coinonly = FALSE;
 int gambling = FALSE;
@@ -96,7 +97,7 @@ int has_disk = FALSE;
 struct termios orig_term_attr;
 struct termios new_term_attr;
 
-const char optstring[] = "?acpwl:y:nd:og";
+const char optstring[] = "?acpwl:y:nd:ogP:";
 const struct option longopts[] =
         {{ "auto",no_argument,NULL,'a' },
         { "chd",no_argument,NULL,'c' },
@@ -108,6 +109,7 @@ const struct option longopts[] =
         { "duration",required_argument,NULL,'d' },
         { "coinonly",no_argument,NULL,'o' },
         { "gambling",no_argument,NULL,'g' },
+        { "players",required_argument,NULL,'P' },
 	{NULL,0,NULL,0}};
 
 
@@ -129,6 +131,7 @@ static int is_machine_ok(llist_t * machine)
 	char * year;
 	char * type;
 	char * driver_status;
+	char * players;
 	int i;
 	int is_OK = TRUE;
 
@@ -146,8 +149,8 @@ static int is_machine_ok(llist_t * machine)
 		i++;
 	}
 
-	// coin only
 	input = find_first_node(machine,"input");
+	// coin only
 	if(coinonly) {
 		coins = find_attr(input,"coins");
 
@@ -171,6 +174,24 @@ static int is_machine_ok(llist_t * machine)
 				break;
 			}
 			control = find_next_node(control);
+		}
+	}
+
+	// players
+	if(min_players) {
+		players = find_attr(input,"players");
+		if( players == NULL ) {
+			printf("    No players information, skipping\n");
+			is_OK = FALSE;
+		}
+		else {
+			if( strcmp(min_players,players) > 0 ) {
+				printf("    Only %s players, skipping\n",players);
+				is_OK = FALSE;
+			}
+			else {
+				printf("    %s players allowed\n",players);
+			}
 		}
 	}
 
@@ -883,6 +904,9 @@ int main(int argc, char**argv)
 			case 'd':
 				duration = atoi(optarg);
 				break;
+			case 'P':
+				min_players = optarg;
+				break;
 			default:
 				printf("Usage:\n\n");
 				printf("%s [OPTION] <Mame binary full path name>\n\n",argv[0]);
@@ -895,6 +919,7 @@ int main(int argc, char**argv)
 				printf("-n : no sound\n");
 				printf("-o : coin operated nachine only\n");
 				printf("-p : allow preliminary drivers\n");
+				printf("-P <num players>: only choose drivers allowing at least <num players> \n");
 				printf("-w : use white list\n");
 				printf("-y <4 digit year> : only choose drivers later than <year>\n");
 				exit(0);
