@@ -87,7 +87,7 @@ char ** desc_black_list = NULL;
 int automode = FALSE;
 int chdmode = FALSE;
 int preliminarymode = FALSE;
-int minyear = FALSE;
+char* minyear = NULL;
 int whitelistmode = FALSE;
 int coinonly = FALSE;
 int gambling = FALSE;
@@ -177,7 +177,7 @@ static int is_machine_ok(llist_t * machine)
 	//minimal year
 	y = find_first_node(machine,"year");
 	if(y==NULL){
-		if(minyear > 0) {
+		if(minyear) {
 			printf("    has no year information, skipping\n");
 			is_OK = FALSE;
 		}
@@ -185,15 +185,15 @@ static int is_machine_ok(llist_t * machine)
 	else {
 		year = y->data;
 		if(year==NULL || year[0]==0){
-			if(minyear > 0) {
+			if(minyear) {
 				printf("    has no year information, skipping\n");
 				is_OK = FALSE;
 			}
 		}
 		else {
 			printf("    year is %s\n",year);
-			if(minyear > 0) {
-				if( atoi(year) < minyear ) {
+			if(minyear) {
+				if( strcmp(year,minyear) < 0 ) {
 					printf("    too old, skipping\n");
 					is_OK = FALSE;
 				}
@@ -875,7 +875,7 @@ int main(int argc, char**argv)
 				forced_list = optarg;
 				break;
 			case 'y':
-				minyear = atoi(optarg);
+				minyear = optarg;
 				break;
 			case 'n':
 				strcat(option,OPTION_NO_SOUND);
