@@ -175,25 +175,27 @@ static int is_machine_ok(llist_t * machine)
 	}
 
 	//minimal year
-	if(minyear > 0) {
-		y = find_first_node(machine,"year");
-		if(y==NULL){
+	y = find_first_node(machine,"year");
+	if(y==NULL){
+		if(minyear > 0) {
 			printf("    has no year information, skipping\n");
 			is_OK = FALSE;
 		}
-		else {
-			year = y->data;
-			if(year==NULL || year[0]==0){
+	}
+	else {
+		year = y->data;
+		if(year==NULL || year[0]==0){
+			if(minyear > 0) {
 				printf("    has no year information, skipping\n");
 				is_OK = FALSE;
 			}
-			else {
+		}
+		else {
+			printf("    year is %s\n",year);
+			if(minyear > 0) {
 				if( atoi(year) < minyear ) {
-					printf("    too old (%s), skipping\n",year);
+					printf("    too old, skipping\n");
 					is_OK = FALSE;
-				}
-				else {
-					printf("    year is %s\n",year);
 				}
 			}
 		}
