@@ -940,6 +940,7 @@ void fill_filter(char * filter, int in_out)
 	fclose(categoryini);
 
 	count++;
+	printf("%d drivers added\n\n", count);
 	*filter_in_out=realloc(*filter_in_out,count*sizeof(char *));
 	(*filter_in_out)[count-1] = NULL;
 }
