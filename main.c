@@ -1,6 +1,6 @@
 /*
    mame-launcher runs MAME emulator with random machines.
-   Copyright (C) 2013-2016 carabobz@gmail.com
+   Copyright (C) 2013-2017 carabobz@gmail.com
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #define AUTO_BLACK_SOFTLIST CONFIG_DIR "/auto_black_softlist"
 #define DRIVER_BLACK_LIST CONFIG_DIR "/driver_black_list"
 #define DESC_BLACK_LIST CONFIG_DIR "/desc_black_list"
+#define CATEGORY_INI CONFIG_DIR "/category.ini"
 #define OPTION_NO_SOUND " -nosound "
 #define AUTO_MODE_OPTION "-nowindow -ui_active "
 #define DURATION_OPTION "-str"
@@ -65,6 +66,10 @@ char * auto_black_list_filename=NULL;
 char * auto_black_softlist_filename=NULL;
 char * driver_black_list_filename=NULL;
 char * desc_black_list_filename=NULL;
+char * category_ini_filename=NULL;
+
+char ** filterin=NULL;
+char ** filterout=NULL;
 
 llist_t * listxml;
 llist_t * softlists;
@@ -97,7 +102,7 @@ int has_disk = FALSE;
 struct termios orig_term_attr;
 struct termios new_term_attr;
 
-const char optstring[] = "?acpwl:y:nd:ogP:";
+const char optstring[] = "?acpwl:y:nd:ogP:f:F:";
 const struct option longopts[] =
         {{ "auto",no_argument,NULL,'a' },
         { "chd",no_argument,NULL,'c' },
@@ -110,6 +115,8 @@ const struct option longopts[] =
         { "coinonly",no_argument,NULL,'o' },
         { "gambling",no_argument,NULL,'g' },
         { "players",required_argument,NULL,'P' },
+        { "filterin",required_argument,NULL,'F' },
+        { "filterout",required_argument,NULL,'f' },
 	{NULL,0,NULL,0}};
 
 
@@ -749,6 +756,8 @@ static void init()
 	desc_black_list_filename=build_full_filename(DESC_BLACK_LIST);
 	desc_black_list=read_conf_file(desc_black_list_filename);
 
+	category_ini_filename=build_full_filename(CATEGORY_INI);
+
 	printf("WORKING_DIR:         %s\n",working_dir);
 	printf("BINARY:              %s\n",binary);
 	printf("WHITE_LIST:          %s\n",whitelist_filename);
@@ -856,11 +865,93 @@ void update_cache()
 	free(buffer);
 }
 
+/******************************************************************************/
+void fill_filter(char * filter, int in_out)
+{
+	FILE * categoryini = NULL;
+	size_t len = 0;
+	int count = 0;
+	char * entry = NULL;
+	int category_found = 0;
+	char *** filter_in_out;
+
+	if( filter == NULL ) {
+		return;
+	}
+
+	// Load list
+	if( in_out == 0) {
+		printf("Filter in loading\n");
+		filter_in_out = &filterin;
+	}
+	else {
+		printf("Filter out loading\n");
+		filter_in_out = &filterout;
+	}
+
+	categoryini = fopen(category_ini_filename,"r");
+	while (  getline(&entry,&len,categoryini) !=  -1 ){
+
+		entry[strlen(entry)-1] = 0;
+		if( entry[0] == ';' ) {
+			free(entry);
+			entry=NULL;
+			len = 0;
+			continue;
+		}
+			
+		if( entry[0] == '[' ) {
+			category_found = 0;
+			if( in_out == 0 ) {
+				if( strstr(entry,filter) != NULL ) {
+					category_found = 1;
+					printf("Adding in category %s\n", entry);
+				}
+			}
+			else {
+				if( strstr(entry,filter) == NULL ) {
+					category_found = 1;
+					printf("Adding out category %s\n", entry);
+				}
+			}
+
+			free(entry);
+			entry=NULL;
+			len = 0;
+			continue;
+		}
+
+		if( category_found == 1) {
+			if( entry[1] != 0 ) {
+				count++;
+				*filter_in_out=realloc(*filter_in_out,count*sizeof(char *));
+				(*filter_in_out)[count-1] = entry;
+				//printf("Adding driver: %s\n",entry);
+			}
+		}
+		else {
+			free(entry);
+		}
+
+		entry=NULL;
+		len = 0;
+	}
+
+	fclose(categoryini);
+
+	count++;
+	*filter_in_out=realloc(*filter_in_out,count*sizeof(char *));
+	(*filter_in_out)[count-1] = NULL;
+}
+
+/******************************************************************************/
 int main(int argc, char**argv)
 {
 	int opt_ret;
 	char buffer[BUFFER_SIZE];
 	int index;
+	char * filter_in = NULL;
+	char * filter_out = NULL;
 
 	pthread_t thread_xml;
 	pthread_t thread_softlist;
@@ -907,6 +998,12 @@ int main(int argc, char**argv)
 			case 'P':
 				min_players = optarg;
 				break;
+			case 'F':
+				filter_in = optarg;
+				break;
+			case 'f':
+				filter_out = optarg;
+				break;
 			default:
 				printf("Usage:\n\n");
 				printf("%s [OPTION] <Mame binary full path name>\n\n",argv[0]);
@@ -914,6 +1011,8 @@ int main(int argc, char**argv)
 				printf("-a : automatic mode\n");
 				printf("-c : only disk based softwares (CHD)\n");
 				printf("-d <seconds> : auto mode run duration\n");
+				printf("-f <filter> : category.ini drivers within category name NOT containing <filter>\n");
+				printf("-F <filter> : category.ini drivers within category name containing <filter>\n");
 				printf("-g : allow gambling games (default is no gambling game)\n");
 				printf("-l <list> : only use <list> software list\n");
 				printf("-n : no sound\n");
@@ -954,6 +1053,9 @@ int main(int argc, char**argv)
 	sprintf(auto_mode_option," %s %s %d ",AUTO_MODE_OPTION,DURATION_OPTION,duration);
 
 	init();
+
+	fill_filter(filter_in,0);
+	fill_filter(filter_out,1);
 
 	if(chdir(working_dir) == -1) {
 		printf("Failed to change to directory %s\n",working_dir);
@@ -998,3 +1100,4 @@ int main(int argc, char**argv)
 
 	return 0;
 }
+
