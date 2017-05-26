@@ -68,8 +68,7 @@ char * driver_black_list_filename=NULL;
 char * desc_black_list_filename=NULL;
 char * category_ini_filename=NULL;
 
-char ** filterin=NULL;
-char ** filterout=NULL;
+char ** category_ini_filter=NULL;
 
 llist_t * listxml;
 llist_t * softlists;
@@ -277,6 +276,17 @@ static int is_machine_ok(llist_t * machine)
 	}
 
 	// Description black list
+	i = 0;
+	while( desc_black_list[i] != NULL ) {
+		if(strstr(desc->data,desc_black_list[i])){
+			printf("    black-listed by its description, skipping\n");
+			is_OK = FALSE;
+			break;
+		}
+		i++;
+	}
+
+	// category.ini list
 	i = 0;
 	while( desc_black_list[i] != NULL ) {
 		if(strstr(desc->data,desc_black_list[i])){
@@ -873,7 +883,6 @@ void fill_filter(char * filter, int in_out)
 	int count = 0;
 	char * entry = NULL;
 	int category_found = 0;
-	char *** filter_in_out;
 
 	if( filter == NULL ) {
 		return;
@@ -882,11 +891,9 @@ void fill_filter(char * filter, int in_out)
 	// Load list
 	if( in_out == 0) {
 		printf("Filter in loading\n");
-		filter_in_out = &filterin;
 	}
 	else {
 		printf("Filter out loading\n");
-		filter_in_out = &filterout;
 	}
 
 	categoryini = fopen(category_ini_filename,"r");
@@ -924,8 +931,8 @@ void fill_filter(char * filter, int in_out)
 		if( category_found == 1) {
 			if( entry[1] != 0 ) {
 				count++;
-				*filter_in_out=realloc(*filter_in_out,count*sizeof(char *));
-				(*filter_in_out)[count-1] = entry;
+				category_ini_filter=realloc(category_ini_filter,count*sizeof(char *));
+				category_ini_filter[count-1] = entry;
 				//printf("Adding driver: %s\n",entry);
 			}
 		}
@@ -941,8 +948,8 @@ void fill_filter(char * filter, int in_out)
 
 	count++;
 	printf("%d drivers added\n\n", count);
-	*filter_in_out=realloc(*filter_in_out,count*sizeof(char *));
-	(*filter_in_out)[count-1] = NULL;
+	category_ini_filter=realloc(category_ini_filter,count*sizeof(char *));
+	category_ini_filter[count-1] = NULL;
 }
 
 /******************************************************************************/
