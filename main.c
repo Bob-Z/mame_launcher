@@ -287,14 +287,19 @@ static int is_machine_ok(llist_t * machine)
 	}
 
 	// category.ini list
-	i = 0;
-	while( desc_black_list[i] != NULL ) {
-		if(strstr(desc->data,desc_black_list[i])){
-			printf("    black-listed by its description, skipping\n");
-			is_OK = FALSE;
-			break;
+	if( is_OK == TRUE ) {
+		is_OK = FALSE;
+		i = 0;
+		while( category_ini_filter[i] != NULL ) {
+			if(strcmp(name,category_ini_filter[i]) == 0){
+				is_OK = TRUE;
+				break;
+			}
+			i++;
 		}
-		i++;
+	}
+	if( is_OK == FALSE ) {
+		printf("    black-listed by category.ini filter, skipping\n");
 	}
 
 	//chd
@@ -900,6 +905,9 @@ void fill_filter(char * filter, int in_out)
 	while (  getline(&entry,&len,categoryini) !=  -1 ){
 
 		entry[strlen(entry)-1] = 0;
+		entry[strlen(entry)-1] = 0;
+
+		// skip comments
 		if( entry[0] == ';' ) {
 			free(entry);
 			entry=NULL;
@@ -929,7 +937,8 @@ void fill_filter(char * filter, int in_out)
 		}
 
 		if( category_found == 1) {
-			if( entry[1] != 0 ) {
+			// skip empty lines
+			if( entry[0] != 0 ) {
 				count++;
 				category_ini_filter=realloc(category_ini_filter,count*sizeof(char *));
 				category_ini_filter[count-1] = entry;
