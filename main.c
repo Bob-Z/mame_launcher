@@ -287,7 +287,7 @@ static int is_machine_ok(llist_t * machine)
 	}
 
 	// category.ini list
-	if( is_OK == TRUE ) {
+	if( is_OK == TRUE && category_ini_filter != NULL) {
 		is_OK = FALSE;
 		i = 0;
 		while( category_ini_filter[i] != NULL ) {
